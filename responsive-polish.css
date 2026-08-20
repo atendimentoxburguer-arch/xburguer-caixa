@@ -5,6 +5,43 @@
 .cloud-health-card p::after{content:"Os fechamentos são atualizados automaticamente pela nuvem e em tempo real entre os aparelhos conectados.";font-size:11px;line-height:1.5;color:var(--muted)}
 #syncBackupBtn,#syncBtn{display:none!important}
 
+.mobile-menu-close{display:none}
+
+@media(max-width:900px){
+  body.mobile-menu-open{overflow:hidden!important;overscroll-behavior:none}
+  .sidebar{z-index:70!important}
+  .brand{position:relative;padding-right:62px!important}
+  .mobile-menu-close{
+    display:grid;
+    place-items:center;
+    position:absolute;
+    top:50%;
+    right:12px;
+    transform:translateY(-50%);
+    width:44px;
+    height:44px;
+    border:1px solid rgba(255,255,255,.14);
+    border-radius:12px;
+    background:rgba(255,255,255,.07);
+    color:#fff;
+    font:700 31px/1 system-ui,-apple-system,sans-serif;
+    cursor:pointer;
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mobile-menu-close:active{background:rgba(255,255,255,.15);transform:translateY(-50%) scale(.96)}
+  .overlay{
+    display:block!important;
+    z-index:60!important;
+    opacity:0!important;
+    pointer-events:none!important;
+    background:rgba(7,24,37,.46)!important;
+    backdrop-filter:blur(2px);
+    -webkit-backdrop-filter:blur(2px);
+  }
+  .overlay.show{opacity:1!important;pointer-events:auto!important}
+}
+
 @media(max-width:620px){
   .top-actions .cloud-badge{
     font-size:9px!important;
