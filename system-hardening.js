@@ -1,5 +1,5 @@
-/* X-Burguer Caixa — estabilidade funcional v4.14.0 */
-const XB_APP_VERSION='4.14.0';
+/* X-Burguer Caixa — estabilidade funcional v4.14.1 */
+const XB_APP_VERSION='4.14.1';
 window.XB_APP_VERSION=XB_APP_VERSION;
 let xbAuthRefreshPromise=null;
 
@@ -64,6 +64,28 @@ exportJSON=function(){
   localStorage.setItem(BACKUP_KEY,now);
   refreshBackup();
   toast('Backup JSON exportado.');
+};
+
+/* Valida o arquivo inteiro antes de iniciar uma restauração. */
+validateBackupRecords=function(records){
+  if(!Array.isArray(records))return'O arquivo não contém uma lista de fechamentos.';
+  if(records.length>10000)return'O backup possui registros demais para uma única importação.';
+  const dates=new Set();
+  for(let i=0;i<records.length;i++){
+    const r=records[i];
+    if(!r||typeof r!=='object'||Array.isArray(r))return`Registro ${i+1} do backup é inválido.`;
+    const date=String(r.date||'');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return`Registro ${i+1} está sem uma data válida.`;
+    const parsed=new Date(date+'T12:00:00');
+    if(Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==date)return`Registro ${i+1} possui uma data inexistente.`;
+    if(dates.has(date))return`O backup possui mais de um fechamento para ${date}. Remova a duplicidade antes de importar.`;
+    dates.add(date);
+    const moneyFields=['opening','cash','cardOut','onlinePayment','deliveryCard','cashOut','countedCash','sales','expense'];
+    for(const key of moneyFields){
+      if(r[key]!==undefined&&r[key]!==null&&r[key]!==''&&(!Number.isFinite(Number(r[key]))||Number(r[key])<0))return`Registro ${i+1} possui valor financeiro inválido em ${key}.`;
+    }
+  }
+  return true;
 };
 
 function xbApplyVersionAndHealth(){
