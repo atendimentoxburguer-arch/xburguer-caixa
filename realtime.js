@@ -1,9 +1,12 @@
+/* X-Burguer Caixa — sincronização em tempo real resiliente v4.14.0 */
 let realtimeClient=null;
 let realtimeChannel=null;
 let realtimeUserId=null;
 let realtimeToken=null;
 let realtimeReloadTimer=null;
-let realtimeStartTimer=null;
+let realtimeReconnectTimer=null;
+let realtimeState='idle';
+let realtimeStopping=false;
 
 function realtimeStatus(text,state='online'){
   if(typeof setCloudStatus==='function')setCloudStatus(text,state);
@@ -26,21 +29,33 @@ function applyAutomaticSyncUI(){
   }
 
   const info=document.getElementById('syncInfo');
-  if(info)info.textContent='Tempo real ativo';
+  if(info)info.textContent='Conectando ao tempo real...';
 }
 
 applyAutomaticSyncUI();
 
 async function stopRealtimeSync(){
   clearTimeout(realtimeReloadTimer);
-  clearTimeout(realtimeStartTimer);
-  if(realtimeClient&&realtimeChannel){
-    try{await realtimeClient.removeChannel(realtimeChannel)}catch{}
-  }
+  clearTimeout(realtimeReconnectTimer);
+  realtimeStopping=true;
+  const client=realtimeClient,channel=realtimeChannel;
   realtimeChannel=null;
   realtimeClient=null;
   realtimeUserId=null;
   realtimeToken=null;
+  realtimeState='idle';
+  if(client&&channel){
+    try{await client.removeChannel(channel)}catch{}
+  }
+  realtimeStopping=false;
+}
+
+function scheduleRealtimeRestart(delay=1800){
+  clearTimeout(realtimeReconnectTimer);
+  if(!authSession?.access_token||!currentUser?.id||!navigator.onLine)return;
+  realtimeReconnectTimer=setTimeout(()=>{
+    startRealtimeSync(true).catch(()=>{});
+  },delay);
 }
 
 function scheduleRealtimeReload(){
@@ -60,27 +75,32 @@ function scheduleRealtimeReload(){
       refreshAll();
       realtimeStatus('● Nuvem • tempo real','online');
       if(!document.hidden)toast(formDirty?'Dados da nuvem atualizados. Seu rascunho foi preservado.':'Dados atualizados automaticamente.');
-    }catch(err){
+    }catch{
       realtimeStatus(navigator.onLine?'● Nuvem • reconectando...':'● Sem internet',navigator.onLine?'syncing':'error');
+      if(navigator.onLine)scheduleRealtimeRestart();
     }
   },450);
 }
 
-async function startRealtimeSync(){
+async function startRealtimeSync(force=false){
   if(!authSession?.access_token||!currentUser?.id)return false;
   if(!window.supabase?.createClient)return false;
 
-  if(realtimeChannel&&realtimeUserId===currentUser.id){
+  if(!force&&realtimeChannel&&realtimeUserId===currentUser.id&&(realtimeState==='connecting'||realtimeState==='ready')){
     if(realtimeToken!==authSession.access_token){
       realtimeToken=authSession.access_token;
-      try{realtimeClient.realtime.setAuth(realtimeToken)}catch{}
+      try{realtimeClient?.realtime?.setAuth(realtimeToken)}catch{}
     }
     return true;
   }
 
   await stopRealtimeSync();
+  if(!authSession?.access_token||!currentUser?.id)return false;
+
   realtimeUserId=currentUser.id;
   realtimeToken=authSession.access_token;
+  realtimeState='connecting';
+  realtimeStatus('● Nuvem • conectando...','syncing');
 
   realtimeClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
     auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
@@ -93,15 +113,23 @@ async function startRealtimeSync(){
     .on('postgres_changes',{event:'*',schema:'public',table:'cash_closings'},()=>scheduleRealtimeReload())
     .subscribe(status=>{
       if(status==='SUBSCRIBED'){
+        realtimeState='ready';
+        clearTimeout(realtimeReconnectTimer);
         realtimeStatus('● Nuvem • tempo real','online');
         const info=document.getElementById('syncInfo');
         if(info)info.textContent='Tempo real ativo';
       }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        realtimeState='error';
         realtimeStatus('● Nuvem • reconectando...','syncing');
         const info=document.getElementById('syncInfo');
         if(info)info.textContent='Reconectando automaticamente...';
-      }else if(status==='CLOSED'&&authSession){
-        realtimeStatus('● Nuvem • reconectando...','syncing');
+        scheduleRealtimeRestart();
+      }else if(status==='CLOSED'&&!realtimeStopping){
+        realtimeState='error';
+        if(authSession){
+          realtimeStatus('● Nuvem • reconectando...','syncing');
+          scheduleRealtimeRestart();
+        }
       }
     });
 
@@ -110,24 +138,33 @@ async function startRealtimeSync(){
 
 setInterval(()=>{
   if(authSession?.access_token&&currentUser?.id){
-    startRealtimeSync().catch(()=>{});
+    if(!realtimeChannel||realtimeState==='error'||realtimeState==='idle')startRealtimeSync(realtimeState==='error').catch(()=>{});
+    else if(realtimeToken!==authSession.access_token)startRealtimeSync(false).catch(()=>{});
   }else if(realtimeChannel){
     stopRealtimeSync().catch(()=>{});
   }
-},1500);
+},2500);
 
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState!=='visible'||!authSession?.access_token)return;
-  startRealtimeSync().then(async()=>{
+  startRealtimeSync(realtimeState==='error').then(async()=>{
     try{
       await loadCloudData();
       if(!formDirty)loadBestRecordForDate(activeClosingDate||$('date')?.value||isoToday(),{notify:false});
       refreshAll();
-      realtimeStatus('● Nuvem • tempo real','online');
+      if(realtimeState==='ready')realtimeStatus('● Nuvem • tempo real','online');
     }catch{}
   }).catch(()=>{});
 });
 
 window.addEventListener('online',()=>{
-  if(authSession?.access_token)startRealtimeSync().catch(()=>{});
+  if(authSession?.access_token)startRealtimeSync(true).catch(()=>{});
 });
+
+window.addEventListener('offline',()=>{
+  realtimeState='error';
+  clearTimeout(realtimeReconnectTimer);
+});
+
+const realtimeLogoutBtn=document.getElementById('logoutBtn');
+if(realtimeLogoutBtn)realtimeLogoutBtn.addEventListener('click',()=>{stopRealtimeSync().catch(()=>{})});
