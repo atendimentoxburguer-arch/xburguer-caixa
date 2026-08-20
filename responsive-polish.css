@@ -42,13 +42,47 @@
   .overlay.show{opacity:1!important;pointer-events:auto!important}
 }
 
+/* Dashboard: dois cards lado a lado também no celular */
 @media(max-width:620px){
+  #dashboard .cards{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+  }
+  #dashboard .card{
+    min-height:118px!important;
+    padding:14px 13px!important;
+    border-radius:15px!important;
+  }
+  #dashboard .card .label{
+    font-size:9.5px!important;
+    line-height:1.25!important;
+    letter-spacing:.04em!important;
+  }
+  #dashboard .card .num{
+    margin-top:9px!important;
+    font-size:clamp(1.12rem,5.3vw,1.42rem)!important;
+    line-height:1.12!important;
+    overflow-wrap:anywhere!important;
+  }
+  #dashboard .card .hint{
+    padding-top:5px!important;
+    font-size:9.5px!important;
+    line-height:1.3!important;
+  }
   .top-actions .cloud-badge{
     font-size:9px!important;
     max-width:132px!important;
     padding:7px 8px!important;
   }
   .top-actions .cloud-badge::after{content:none!important}
+}
+
+@media(max-width:360px){
+  #dashboard .cards{gap:8px!important}
+  #dashboard .card{min-height:110px!important;padding:12px 10px!important}
+  #dashboard .card .label{font-size:8.8px!important}
+  #dashboard .card .num{font-size:1.05rem!important}
+  #dashboard .card .hint{font-size:8.8px!important}
 }
 
 @media(max-width:390px){
