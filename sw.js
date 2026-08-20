@@ -1,4 +1,5 @@
 const APP_VERSION='4.14.3';
+const APP_PATH='/xburguer-caixa/';
 const CACHE_NAME=`xburguer-caixa-${APP_VERSION}`;
 const CORE_ASSETS=[
   './','./index.html','./manifest.webmanifest',
@@ -7,6 +8,7 @@ const CORE_ASSETS=[
   './currency-format.css','./page-transitions.css','./login-transitions.css','./system-final.css','./version.css',
   './shell1.js','./shell2.js','./shell3.js','./shell4.js','./shell5.js','./shell6.js','./shell7.js','./shell8.js','./shell-end.js',
   './logo1.js','./logo2.js','./logo3.js','./logo4.js','./logo5.js','./logo-end.js',
+  './storage-namespace.js',
   './app1.js','./app2.js','./app3.js','./app4.js','./system-hardening.js','./app5.js','./system-guard.js',
   './realtime.js','./mobile-menu-fix.js','./currency-format.js','./pwa.js',
   './icons/xburguer-app-192-v4132.png','./icons/xburguer-app-512-v4140.png'
@@ -35,7 +37,14 @@ self.addEventListener('activate',event=>event.waitUntil((async()=>{
 self.addEventListener('fetch',event=>{
   const request=event.request;
   const url=new URL(request.url);
-  if(request.method!=='GET'||url.origin!==self.location.origin)return;
+
+  // O Caixa só pode interceptar recursos de /xburguer-caixa/.
+  // O Controle de Consumo em /xburguer-controle/ fica totalmente fora deste worker.
+  if(
+    request.method!=='GET' ||
+    url.origin!==self.location.origin ||
+    !url.pathname.startsWith(APP_PATH)
+  ) return;
 
   event.respondWith((async()=>{
     try{
