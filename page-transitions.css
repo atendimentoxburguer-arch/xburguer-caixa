@@ -1,0 +1,22 @@
+/* X-Burguer Caixa — transições sutis entre páginas v4.13.0 */
+@keyframes xbPageIn{
+  from{opacity:.72;transform:translateY(4px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+.page:not(.hidden){
+  animation:xbPageIn .18s ease-out both;
+}
+
+.page-head,
+.panel,
+.cards,
+.grid2,
+.formbar{
+  transition:box-shadow .18s ease, border-color .18s ease, background-color .18s ease;
+}
+
+@media(prefers-reduced-motion:reduce){
+  .page:not(.hidden){animation:none!important}
+  .page-head,.panel,.cards,.grid2,.formbar{transition:none!important}
+}
