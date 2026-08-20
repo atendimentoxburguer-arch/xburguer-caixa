@@ -9,6 +9,28 @@ function realtimeStatus(text,state='online'){
   if(typeof setCloudStatus==='function')setCloudStatus(text,state);
 }
 
+function applyAutomaticSyncUI(){
+  const topSync=document.getElementById('syncBtn');
+  if(topSync)topSync.style.display='none';
+
+  const backupSync=document.getElementById('syncBackupBtn');
+  if(backupSync){
+    backupSync.style.display='none';
+    const card=backupSync.closest('.backup-card');
+    if(card){
+      const title=card.querySelector('h3');
+      const text=card.querySelector('p');
+      if(title)title.textContent='Sincronização automática';
+      if(text)text.textContent='Os fechamentos são atualizados automaticamente em tempo real entre os aparelhos conectados.';
+    }
+  }
+
+  const info=document.getElementById('syncInfo');
+  if(info)info.textContent='Tempo real ativo';
+}
+
+applyAutomaticSyncUI();
+
 async function stopRealtimeSync(){
   clearTimeout(realtimeReloadTimer);
   clearTimeout(realtimeStartTimer);
@@ -70,9 +92,17 @@ async function startRealtimeSync(){
     .channel('xburguer-caixa-live')
     .on('postgres_changes',{event:'*',schema:'public',table:'cash_closings'},()=>scheduleRealtimeReload())
     .subscribe(status=>{
-      if(status==='SUBSCRIBED')realtimeStatus('● Nuvem • tempo real','online');
-      else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')realtimeStatus('● Nuvem • reconectando...','syncing');
-      else if(status==='CLOSED'&&authSession)realtimeStatus('● Nuvem • reconectando...','syncing');
+      if(status==='SUBSCRIBED'){
+        realtimeStatus('● Nuvem • tempo real','online');
+        const info=document.getElementById('syncInfo');
+        if(info)info.textContent='Tempo real ativo';
+      }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        realtimeStatus('● Nuvem • reconectando...','syncing');
+        const info=document.getElementById('syncInfo');
+        if(info)info.textContent='Reconectando automaticamente...';
+      }else if(status==='CLOSED'&&authSession){
+        realtimeStatus('● Nuvem • reconectando...','syncing');
+      }
     });
 
   return true;
