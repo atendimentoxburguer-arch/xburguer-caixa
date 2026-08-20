@@ -1,4 +1,5 @@
 {
+  "id": "./",
   "name": "X-Burguer Controle de Caixa",
   "short_name": "X-Burguer Caixa",
   "description": "Sistema interno de controle e fechamento de caixa da X-Burguer.",
@@ -11,16 +12,22 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "icons/icon-192.png?v=4.13.0",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-512.svg",
-      "sizes": "any",
+      "src": "icons/icon-512-v4130.svg?v=4.13.0",
+      "sizes": "512x512",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512-v4130.svg?v=4.13.0",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }
