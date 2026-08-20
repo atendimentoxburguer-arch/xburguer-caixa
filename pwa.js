@@ -1,23 +1,34 @@
-/* X-Burguer Caixa — registro PWA v4.14.3 */
+/* X-Burguer Caixa — aplicativo instalável/PWA v4.15.0 */
 (function(){
+  function markStandalone(){
+    const standalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+    document.documentElement.classList.toggle('app-installed',standalone);
+  }
+
+  markStandalone();
+  try{
+    window.matchMedia('(display-mode: standalone)').addEventListener('change',markStandalone);
+  }catch{}
+
   if(!('serviceWorker' in navigator))return;
 
   window.addEventListener('load',async()=>{
     try{
-      const reg=await navigator.serviceWorker.register('/xburguer-caixa/sw.js?v=4.14.3',{
+      const reg=await navigator.serviceWorker.register('/xburguer-caixa/sw.js?v=4.15.0',{
         scope:'/xburguer-caixa/',
         updateViaCache:'none'
       });
       await reg.update().catch(()=>{});
-      await navigator.serviceWorker.ready.catch(()=>{});
+      await navigator.serviceWorker.ready;
     }catch(err){
-      console.warn('PWA Caixa:',err);
+      console.warn('X-Burguer Caixa PWA:',err);
     }
   });
 
   /*
-   * Não interceptamos beforeinstallprompt.
-   * Assim Chrome/Edge podem exibir o ícone nativo de instalação
-   * diretamente na barra de endereço, como no outro sistema.
+   * Não interceptar beforeinstallprompt.
+   * Chrome/Edge podem exibir o instalador nativo na barra de endereço.
    */
 })();

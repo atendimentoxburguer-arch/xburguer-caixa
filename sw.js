@@ -1,6 +1,6 @@
-const APP_VERSION='4.14.3';
+const APP_VERSION='4.15.0';
 const APP_PATH='/xburguer-caixa/';
-const CACHE_NAME=`xburguer-caixa-${APP_VERSION}`;
+const CACHE_NAME=`xburguer-caixa-app-${APP_VERSION}`;
 const CORE_ASSETS=[
   './','./index.html','./manifest.webmanifest',
   './style1.css','./style2.css','./style3.css','./style4.css','./style5.css',
@@ -11,7 +11,10 @@ const CORE_ASSETS=[
   './storage-namespace.js',
   './app1.js','./app2.js','./app3.js','./app4.js','./system-hardening.js','./app5.js','./system-guard.js',
   './realtime.js','./mobile-menu-fix.js','./currency-format.js','./pwa.js',
-  './icons/xburguer-app-192-v4132.png','./icons/xburguer-app-512-v4140.png'
+  './icons/xburguer-caixa-32-v4150.png',
+  './icons/xburguer-caixa-192-v4150.png',
+  './icons/xburguer-caixa-512-v4150.png',
+  './icons/xburguer-caixa-maskable-512-v4150.png'
 ];
 
 self.addEventListener('install',event=>{
@@ -29,17 +32,17 @@ self.addEventListener('install',event=>{
 
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
   const names=await caches.keys();
-  await Promise.all(names.filter(name=>name.startsWith('xburguer-caixa-')&&name!==CACHE_NAME).map(name=>caches.delete(name)));
+  await Promise.all(names.filter(name=>
+    (name.startsWith('xburguer-caixa-')||name.startsWith('xburguer-caixa-app-')) &&
+    name!==CACHE_NAME
+  ).map(name=>caches.delete(name)));
   await self.clients.claim();
 })()));
 
-// Rede primeiro; cache somente como segurança quando a conexão cair.
 self.addEventListener('fetch',event=>{
   const request=event.request;
   const url=new URL(request.url);
 
-  // O Caixa só pode interceptar recursos de /xburguer-caixa/.
-  // O Controle de Consumo em /xburguer-controle/ fica totalmente fora deste worker.
   if(
     request.method!=='GET' ||
     url.origin!==self.location.origin ||
@@ -61,7 +64,7 @@ self.addEventListener('fetch',event=>{
         const fallback=await caches.match('./index.html',{ignoreSearch:true})||await caches.match('./',{ignoreSearch:true});
         if(fallback)return fallback;
       }
-      return new Response('Recurso indisponível sem conexão.',{status:503,statusText:'Offline'});
+      return new Response('X-Burguer Caixa indisponível sem conexão.',{status:503,statusText:'Offline'});
     }
   })());
 });
