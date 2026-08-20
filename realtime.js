@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — sincronização em tempo real resiliente v4.14.0 */
+/* X-Burguer Caixa — sincronização em tempo real resiliente v4.14.1 */
 let realtimeClient=null;
 let realtimeChannel=null;
 let realtimeUserId=null;
@@ -74,12 +74,13 @@ function scheduleRealtimeReload(){
       }
       refreshAll();
       realtimeStatus('● Nuvem • tempo real','online');
-      if(!document.hidden)toast(formDirty?'Dados da nuvem atualizados. Seu rascunho foi preservado.':'Dados atualizados automaticamente.');
+      const info=document.getElementById('syncInfo');
+      if(info)info.textContent=formDirty?'Tempo real ativo • rascunho local preservado':'Tempo real ativo';
     }catch{
       realtimeStatus(navigator.onLine?'● Nuvem • reconectando...':'● Sem internet',navigator.onLine?'syncing':'error');
       if(navigator.onLine)scheduleRealtimeRestart();
     }
-  },450);
+  },500);
 }
 
 async function startRealtimeSync(force=false){
@@ -136,6 +137,7 @@ async function startRealtimeSync(force=false){
   return true;
 }
 
+/* Verificação leve de segurança; reconexões normais continuam orientadas por eventos. */
 setInterval(()=>{
   if(authSession?.access_token&&currentUser?.id){
     if(!realtimeChannel||realtimeState==='error'||realtimeState==='idle')startRealtimeSync(realtimeState==='error').catch(()=>{});
@@ -143,7 +145,7 @@ setInterval(()=>{
   }else if(realtimeChannel){
     stopRealtimeSync().catch(()=>{});
   }
-},2500);
+},10000);
 
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState!=='visible'||!authSession?.access_token)return;
