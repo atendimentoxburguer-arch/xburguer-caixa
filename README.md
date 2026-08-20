@@ -1,11 +1,21 @@
-# X-Burguer Caixa
+# X-Burguer — Controle de Caixa
 
-Sistema interno de controle e fechamento de caixa da X-Burguer.
+Este repositório contém **somente o sistema de Controle de Caixa**.
 
-Versão publicada: **4.14.1 — Revisão geral de estabilidade**.
+Versão atual de organização/PWA: **4.14.3**.
 
-O frontend é publicado no GitHub Pages e usa Supabase para autenticação, banco de dados e sincronização em tempo real.
+- GitHub Pages: `/xburguer-caixa/`
+- PWA ID: `/xburguer-caixa/caixa-app`
+- Service Worker: `sw.js`
+- Escopo do PWA: `/xburguer-caixa/`
+- Cache: prefixo `xburguer-caixa-`
+- Armazenamento local físico: prefixo `xburguer_caixa_`
+- Banco: projeto Supabase exclusivo do Controle de Caixa
 
-Principais recursos: fechamento diário, histórico, relatórios diário e mensal, controle de pães, despesas, backup JSON/CSV, rascunho local por data, PWA instalável e layout responsivo para computador, tablet e celular.
+O **Controle de Consumo** fica no repositório `xburguer-controle`, usa o caminho `/xburguer-controle/`, outro PWA, outro cache, outro armazenamento local e outro projeto Supabase.
 
-A revisão 4.14.1 reforça a precisão dos valores em Real, valida backups antes da importação, protege operações críticas contra saída acidental, suaviza a sincronização em tempo real e melhora o fallback offline do PWA.
+## Regra de organização
+
+Arquivos, alterações, workflows e configurações do Controle de Consumo não devem ser adicionados neste repositório. Da mesma forma, arquivos do Controle de Caixa não devem ser adicionados ao repositório do Consumo.
+
+Principais recursos do Caixa: fechamento diário, histórico, relatórios diário e mensal, controle de pães, despesas, backup JSON/CSV, rascunho local por data, PWA instalável e layout responsivo.
