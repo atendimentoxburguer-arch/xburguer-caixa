@@ -1,0 +1,19 @@
+/* Acabamentos finais do responsivo */
+.cloud-health-card h3{font-size:0}
+.cloud-health-card h3::after{content:"Sincronização automática";font-size:14px}
+.cloud-health-card p{font-size:0}
+.cloud-health-card p::after{content:"Os fechamentos são atualizados automaticamente pela nuvem e em tempo real entre os aparelhos conectados.";font-size:11px;line-height:1.5;color:var(--muted)}
+#syncBackupBtn,#syncBtn{display:none!important}
+
+@media(max-width:620px){
+  .top-actions .cloud-badge{
+    font-size:9px!important;
+    max-width:132px!important;
+    padding:7px 8px!important;
+  }
+  .top-actions .cloud-badge::after{content:none!important}
+}
+
+@media(max-width:390px){
+  .top-actions .cloud-badge{display:none!important}
+}
