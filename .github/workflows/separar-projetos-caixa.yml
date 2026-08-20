@@ -1,0 +1,156 @@
+name: Isolar Controle de Caixa
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/separar-projetos-caixa.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  separar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Separar storage, PWA e caches do Caixa
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          root=Path('.')
+
+          app1=root/'app1.js'
+          t=app1.read_text(encoding='utf-8')
+          antigo="""const SESSION_KEY='xburguer_supabase_session_v1';
+const LEGACY_DRAFT_KEY='xburguer_draft_v2';
+const DRAFT_PREFIX='xburguer_draft_v3:';
+const BACKUP_KEY='xburguer_last_backup';
+"""
+          novo="""const SESSION_KEY='xburguer_caixa_supabase_session_v1';
+const LEGACY_DRAFT_KEY='xburguer_caixa_draft_v2';
+const DRAFT_PREFIX='xburguer_caixa_draft_v3:';
+const BACKUP_KEY='xburguer_caixa_last_backup';
+
+// Migração única: preserva sessões, rascunhos e data do último backup
+// criados antes da separação definitiva entre Caixa e Consumo.
+(function migrateCaixaStorageNamespace(){
+  const oldSession='xburguer_supabase_session_v1';
+  const oldLegacyDraft='xburguer_draft_v2';
+  const oldDraftPrefix='xburguer_draft_v3:';
+  const oldBackup='xburguer_last_backup';
+  try{
+    for(const store of [localStorage,sessionStorage]){
+      const old=store.getItem(oldSession);
+      if(old&&!store.getItem(SESSION_KEY))store.setItem(SESSION_KEY,old);
+      if(old)store.removeItem(oldSession);
+    }
+
+    const legacy=localStorage.getItem(oldLegacyDraft);
+    if(legacy&&!localStorage.getItem(LEGACY_DRAFT_KEY))localStorage.setItem(LEGACY_DRAFT_KEY,legacy);
+    if(legacy)localStorage.removeItem(oldLegacyDraft);
+
+    const keys=[];
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(key&&key.startsWith(oldDraftPrefix))keys.push(key);
+    }
+    for(const key of keys){
+      const suffix=key.slice(oldDraftPrefix.length);
+      const newKey=DRAFT_PREFIX+suffix;
+      const value=localStorage.getItem(key);
+      if(value!==null&&!localStorage.getItem(newKey))localStorage.setItem(newKey,value);
+      localStorage.removeItem(key);
+    }
+
+    const backup=localStorage.getItem(oldBackup);
+    if(backup&&!localStorage.getItem(BACKUP_KEY))localStorage.setItem(BACKUP_KEY,backup);
+    if(backup)localStorage.removeItem(oldBackup);
+  }catch(err){
+    console.warn('Caixa: não foi possível migrar o armazenamento local antigo.',err);
+  }
+})();
+"""
+          if antigo not in t:
+            raise SystemExit('Constantes de storage antigas não encontradas')
+          app1.write_text(t.replace(antigo,novo,1),encoding='utf-8')
+
+          pwa=root/'pwa.js'
+          t=pwa.read_text(encoding='utf-8').replace('v4.14.2','v4.14.3').replace("./sw.js?v=4.14.2","./sw.js?v=4.14.3")
+          antigo_reg="""      try{
+        const reg=await navigator.serviceWorker.register('./sw.js?v=4.14.3',{scope:'./',updateViaCache:'none'});
+        await reg.update().catch(()=>{});
+        await navigator.serviceWorker.ready.catch(()=>{});
+      }catch(err){console.warn('PWA Caixa:',err)}
+"""
+          novo_reg="""      try{
+        const expectedScope=new URL('./',location.href).href;
+        const expectedScript=new URL('./sw.js',location.href).href;
+        const regs=await navigator.serviceWorker.getRegistrations();
+        for(const old of regs){
+          if(old.scope!==expectedScope)continue;
+          const script=old.active?.scriptURL||old.waiting?.scriptURL||old.installing?.scriptURL||'';
+          if(script&&new URL(script).pathname!==new URL(expectedScript).pathname)await old.unregister();
+        }
+        const reg=await navigator.serviceWorker.register('./sw.js?v=4.14.3',{scope:'./',updateViaCache:'none'});
+        await reg.update().catch(()=>{});
+        await navigator.serviceWorker.ready.catch(()=>{});
+      }catch(err){console.warn('PWA Caixa:',err)}
+"""
+          if antigo_reg not in t:
+            raise SystemExit('Registro PWA do Caixa não encontrado')
+          pwa.write_text(t.replace(antigo_reg,novo_reg,1),encoding='utf-8')
+
+          sw=root/'sw.js'
+          t=sw.read_text(encoding='utf-8')
+          t=t.replace("const APP_VERSION='4.14.2';", "const APP_VERSION='4.14.3';\nconst APP_PATH='/xburguer-caixa/';")
+          t=t.replace("if(request.method!=='GET'||url.origin!==self.location.origin)return;",
+                      "if(request.method!=='GET'||url.origin!==self.location.origin||!url.pathname.startsWith(APP_PATH))return;")
+          sw.write_text(t,encoding='utf-8')
+
+          manifest=root/'manifest.webmanifest'
+          t=manifest.read_text(encoding='utf-8').replace('?v=4.14.2','?v=4.14.3')
+          manifest.write_text(t,encoding='utf-8')
+
+          idx=root/'index.html'
+          t=idx.read_text(encoding='utf-8')
+          t=t.replace('manifest.webmanifest?v=4.14.2','manifest.webmanifest?v=4.14.3')
+          t=t.replace('xburguer-app-192-v4132.png?v=4.14.2','xburguer-app-192-v4132.png?v=4.14.3')
+          t=t.replace('pwa.js?v=4.14.2','pwa.js?v=4.14.3')
+          idx.write_text(t,encoding='utf-8')
+
+          readme=root/'README.md'
+          readme.write_text('''# X-Burguer — Controle de Caixa\n\nEste repositório contém **somente o sistema de Controle de Caixa**.\n\nVersão de organização/PWA: **4.14.3**.\n\n- GitHub Pages: `/xburguer-caixa/`\n- PWA ID: `/xburguer-caixa/caixa-app`\n- Service Worker: `sw.js`\n- Cache: prefixo `xburguer-caixa-`\n- Armazenamento local: prefixo `xburguer_caixa_`\n- Banco: projeto Supabase exclusivo do Controle de Caixa\n\nO sistema **Controle de Consumo** fica no repositório `xburguer-controle`, em outro caminho, com outro PWA, outro cache, outro namespace de armazenamento e outro projeto Supabase. Não adicionar arquivos do Consumo neste repositório.\n\nPrincipais recursos: fechamento diário, histórico, relatórios diário e mensal, controle de pães, despesas, backup JSON/CSV, rascunho local por data, PWA instalável e layout responsivo.\n''',encoding='utf-8')
+          PY
+
+      - name: Validar
+        run: |
+          node --check app1.js
+          node --check pwa.js
+          node --check sw.js
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
+          assert m['id']=='/xburguer-caixa/caixa-app'
+          assert m['scope']=='/xburguer-caixa/'
+          assert m['start_url'].startswith('/xburguer-caixa/')
+          assert "APP_PATH='/xburguer-caixa/'" in Path('sw.js').read_text(encoding='utf-8')
+          assert 'xburguer_caixa_supabase_session_v1' in Path('app1.js').read_text(encoding='utf-8')
+          PY
+
+      - name: Publicar
+        run: |
+          git config user.name 'X-Burguer Organização'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app1.js pwa.js sw.js manifest.webmanifest index.html README.md
+          git commit -m 'Isolar PWA, cache e storage do Controle de Caixa 4.14.3'
+          git push origin main
