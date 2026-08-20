@@ -18,10 +18,10 @@
       "purpose": "any"
     },
     {
-      "src": "icons/icon-512-v4130.svg?v=4.13.2",
+      "src": "icons/xburguer-app-512-v4132.jpg",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
+      "type": "image/jpeg",
+      "purpose": "any maskable"
     }
   ]
 }
