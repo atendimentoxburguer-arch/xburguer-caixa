@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — formatação monetária BRL v4.12.8 */
+/* X-Burguer Caixa — formatação monetária BRL v4.14.0 */
 (function(){
   const nativeValue=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
   if(!nativeValue?.get||!nativeValue?.set)return;
@@ -24,15 +24,14 @@
     if(!s)return '';
 
     // Com vírgula, interpreta no padrão brasileiro: 1.234,56.
-    if(s.includes(',')){
-      s=s.replace(/\./g,'').replace(',','.');
-    }
-    // Mantém somente caracteres numéricos válidos.
-    s=s.replace(/[^0-9.\-]/g,'');
+    if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');
+
+    // Valores financeiros deste sistema são sempre iguais ou maiores que zero.
+    s=s.replace(/[^0-9.]/g,'');
     const firstDot=s.indexOf('.');
     if(firstDot>=0)s=s.slice(0,firstDot+1)+s.slice(firstDot+1).replace(/\./g,'');
     const n=Number(s);
-    return Number.isFinite(n)?String(n):'';
+    return Number.isFinite(n)&&n>=0?String(n):'';
   }
 
   function formatBRL(raw){
@@ -45,7 +44,7 @@
     if(raw===''||raw===null||raw===undefined)return '';
     const n=Number(raw);
     if(!Number.isFinite(n))return '';
-    return String(n).replace('.',',');
+    return String(Math.max(0,n)).replace('.',',');
   }
 
   function decorate(original){
@@ -60,11 +59,13 @@
     proxy.type='text';
     proxy.inputMode='decimal';
     proxy.autocomplete='off';
+    proxy.enterKeyHint='done';
     proxy.id=id+'__brl';
     proxy.className=(original.className?original.className+' ':'')+'currency-proxy';
     proxy.placeholder='R$';
     proxy.setAttribute('aria-label',original.getAttribute('aria-label')||'Valor em reais');
     proxy.dataset.currencyFor=id;
+    proxy.disabled=original.disabled;
 
     const initial=nativeValue.get.call(original);
     proxy.value=formatBRL(initial);
