@@ -1,4 +1,4 @@
-const APP_VERSION='4.14.2';
+const APP_VERSION='4.14.3';
 const CACHE_NAME=`xburguer-caixa-${APP_VERSION}`;
 const CORE_ASSETS=[
   './','./index.html','./manifest.webmanifest',
