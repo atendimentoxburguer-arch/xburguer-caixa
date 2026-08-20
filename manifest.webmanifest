@@ -1,14 +1,13 @@
 {
-  "id": "/xburguer-caixa/caixa-app",
+  "id": "/xburguer-caixa/",
   "name": "X-Burguer Caixa",
   "short_name": "X-Burguer Caixa",
   "description": "Aplicativo interno de controle e fechamento de caixa da X-Burguer.",
   "lang": "pt-BR",
   "dir": "ltr",
-  "start_url": "/xburguer-caixa/?app=caixa",
+  "start_url": "/xburguer-caixa/",
   "scope": "/xburguer-caixa/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#F3F8FA",
   "theme_color": "#12293D",
   "orientation": "any",
@@ -16,19 +15,19 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/xburguer-caixa/icons/xburguer-caixa-192-v4150.png",
+      "src": "./icons/xburguer-caixa-192-v4150.png?v=4.15.1",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/xburguer-caixa/icons/xburguer-caixa-512-v4150.png",
+      "src": "./icons/xburguer-caixa-512-v4150.png?v=4.15.1",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/xburguer-caixa/icons/xburguer-caixa-maskable-512-v4150.png",
+      "src": "./icons/xburguer-caixa-maskable-512-v4150.png?v=4.15.1",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
