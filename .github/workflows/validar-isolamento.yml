@@ -1,0 +1,76 @@
+name: Validar isolamento Caixa
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  isolamento:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Conferir isolamento do Controle de Caixa
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, sys
+
+          root = Path('.')
+          errors = []
+
+          manifest = json.loads((root/'manifest.webmanifest').read_text(encoding='utf-8'))
+          if manifest.get('id') != '/xburguer-caixa/caixa-app':
+              errors.append('Manifest ID do Caixa foi alterado.')
+          if manifest.get('scope') != '/xburguer-caixa/':
+              errors.append('Manifest scope do Caixa foi alterado.')
+          if not str(manifest.get('start_url','')).startswith('/xburguer-caixa/'):
+              errors.append('start_url do Caixa saiu do caminho exclusivo.')
+
+          sw = (root/'sw.js').read_text(encoding='utf-8')
+          if "const APP_PATH='/xburguer-caixa/';" not in sw:
+              errors.append('Service Worker do Caixa perdeu o limite de caminho.')
+          if '/xburguer-controle/' in sw or 'xburguer-pwa-' in sw:
+              errors.append('Service Worker do Caixa contém referência ao Consumo.')
+
+          pwa = (root/'pwa.js').read_text(encoding='utf-8')
+          if "scope:'/xburguer-caixa/'" not in pwa or '/xburguer-caixa/sw.js' not in pwa:
+              errors.append('Registro PWA do Caixa não está preso ao caminho exclusivo.')
+
+          app1 = (root/'app1.js').read_text(encoding='utf-8')
+          if 'trnngxezppeembrvxkhh.supabase.co' not in app1:
+              errors.append('Supabase do Caixa foi alterado.')
+          if 'rrslolruacewjijlhpdc' in app1:
+              errors.append('Caixa contém referência ao banco do Consumo.')
+
+          if not (root/'storage-namespace.js').exists():
+              errors.append('Camada de isolamento do armazenamento local do Caixa não existe.')
+
+          runtime_files = [
+              root/'index.html', root/'manifest.webmanifest', root/'sw.js', root/'pwa.js',
+              root/'app1.js', root/'app2.js', root/'app3.js', root/'app4.js', root/'app5.js',
+              root/'storage-namespace.js'
+          ]
+          forbidden = ['/xburguer-controle/', 'rrslolruacewjijlhpdc', 'xburguer-pwa-', 'xburguer-consumo-']
+          for path in runtime_files:
+              if not path.exists():
+                  continue
+              text = path.read_text(encoding='utf-8', errors='ignore')
+              for token in forbidden:
+                  if token in text:
+                      errors.append(f'{path}: referência proibida do Consumo: {token}')
+
+          if (root/'service-worker.js').exists():
+              errors.append('Existe Service Worker com nome do projeto de Consumo no Caixa.')
+
+          if errors:
+              print('\n'.join('ERRO: '+e for e in errors))
+              sys.exit(1)
+
+          print('OK: Controle de Caixa isolado do Controle de Consumo.')
+          PY
