@@ -1,0 +1,37 @@
+/* X-Burguer Caixa — hotfix menu móvel v4.12.2 */
+@media(max-width:900px){
+  .sidebar{
+    will-change:transform;
+    backface-visibility:hidden;
+    -webkit-backface-visibility:hidden;
+  }
+  .mobile-menu-close{
+    display:grid!important;
+    place-items:center!important;
+    position:absolute!important;
+    top:max(14px,env(safe-area-inset-top))!important;
+    right:12px!important;
+    z-index:9999!important;
+    width:46px!important;
+    height:46px!important;
+    min-width:46px!important;
+    min-height:46px!important;
+    margin:0!important;
+    padding:0!important;
+    border:1px solid rgba(255,255,255,.22)!important;
+    border-radius:14px!important;
+    background:rgba(255,255,255,.12)!important;
+    color:#fff!important;
+    font:400 34px/1 Arial,sans-serif!important;
+    box-shadow:0 6px 18px rgba(0,0,0,.14)!important;
+    pointer-events:auto!important;
+    touch-action:manipulation!important;
+    -webkit-tap-highlight-color:transparent!important;
+  }
+  .mobile-menu-close:active{background:rgba(255,255,255,.22)!important;transform:scale(.97)}
+  .sidebar .brand{padding-right:68px!important;position:relative!important}
+  body.mobile-menu-open{overflow:hidden!important;touch-action:none}
+  body.mobile-menu-open .sidebar{touch-action:pan-y}
+  #overlay{touch-action:none!important}
+}
+@media(min-width:901px){.mobile-menu-close{display:none!important}}
