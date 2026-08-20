@@ -1,4 +1,4 @@
-const APP_VERSION='4.15.0';
+const APP_VERSION='4.15.1';
 const APP_PATH='/xburguer-caixa/';
 const CACHE_NAME=`xburguer-caixa-app-${APP_VERSION}`;
 const CORE_ASSETS=[
@@ -42,12 +42,7 @@ self.addEventListener('activate',event=>event.waitUntil((async()=>{
 self.addEventListener('fetch',event=>{
   const request=event.request;
   const url=new URL(request.url);
-
-  if(
-    request.method!=='GET' ||
-    url.origin!==self.location.origin ||
-    !url.pathname.startsWith(APP_PATH)
-  ) return;
+  if(request.method!=='GET'||url.origin!==self.location.origin||!url.pathname.startsWith(APP_PATH))return;
 
   event.respondWith((async()=>{
     try{
