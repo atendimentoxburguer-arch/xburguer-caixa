@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — formatação monetária BRL v4.14.0 */
+/* X-Burguer Caixa — formatação monetária BRL v4.14.1 */
 (function(){
   const nativeValue=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
   if(!nativeValue?.get||!nativeValue?.set)return;
@@ -16,6 +16,7 @@
   document.body.appendChild(rawHost);
 
   const brl=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
+  const roundMoney=n=>Math.round((Number(n)+Number.EPSILON)*100)/100;
 
   function parseTyped(value){
     let s=String(value??'').trim();
@@ -31,20 +32,22 @@
     const firstDot=s.indexOf('.');
     if(firstDot>=0)s=s.slice(0,firstDot+1)+s.slice(firstDot+1).replace(/\./g,'');
     const n=Number(s);
-    return Number.isFinite(n)&&n>=0?String(n):'';
+    if(!Number.isFinite(n)||n<0)return '';
+    return String(roundMoney(n));
   }
 
   function formatBRL(raw){
     if(raw===''||raw===null||raw===undefined)return '';
     const n=Number(raw);
-    return Number.isFinite(n)?brl.format(n):'';
+    return Number.isFinite(n)?brl.format(roundMoney(n)):'';
   }
 
   function editable(raw){
     if(raw===''||raw===null||raw===undefined)return '';
     const n=Number(raw);
     if(!Number.isFinite(n))return '';
-    return String(Math.max(0,n)).replace('.',',');
+    const rounded=roundMoney(Math.max(0,n));
+    return String(rounded).replace('.',',');
   }
 
   function decorate(original){
@@ -60,6 +63,7 @@
     proxy.inputMode='decimal';
     proxy.autocomplete='off';
     proxy.enterKeyHint='done';
+    proxy.spellcheck=false;
     proxy.id=id+'__brl';
     proxy.className=(original.className?original.className+' ':'')+'currency-proxy';
     proxy.placeholder='R$';
@@ -68,7 +72,8 @@
     proxy.disabled=original.disabled;
 
     const initial=nativeValue.get.call(original);
-    proxy.value=formatBRL(initial);
+    if(initial!=='')nativeValue.set.call(original,parseTyped(initial));
+    proxy.value=formatBRL(nativeValue.get.call(original));
 
     parent.replaceChild(proxy,original);
     rawHost.appendChild(original);
@@ -80,8 +85,9 @@
       enumerable:true,
       get(){return nativeValue.get.call(original)},
       set(v){
-        nativeValue.set.call(original,v==null?'':String(v));
-        if(document.activeElement!==proxy)proxy.value=formatBRL(nativeValue.get.call(original));
+        const normalized=v==null||v===''?'':parseTyped(v);
+        nativeValue.set.call(original,normalized);
+        if(document.activeElement!==proxy)proxy.value=formatBRL(normalized);
       }
     });
 
