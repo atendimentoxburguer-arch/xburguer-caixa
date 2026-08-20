@@ -1,0 +1,95 @@
+/* X-Burguer Caixa — camada final de estabilidade visual v4.14.0 */
+:root{--xb-safe-x:clamp(12px,3vw,22px)}
+html,body{max-width:100%;overflow-x:hidden}
+*{box-sizing:border-box}
+img,svg,canvas,video{max-width:100%;height:auto}
+button,input,textarea,select{font:inherit}
+button,.btn,.menu-toggle,.report-tab,.logout-btn,.link-btn,.icon-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid rgba(27,151,223,.28);outline-offset:2px}
+#syncBtn,#syncBackupBtn{display:none!important}
+
+/* mantém qualquer conteúdo dentro da largura disponível */
+.page-wrap,.page,.panel,.card,.formbar,.filters,.cards,.grid2,.grid3,.backup-grid,.report-switcher,.report-panel,.report-meta,.reconcile-grid,.cash-conference-grid,.financial-main-table,.channel-row,.bread-row,.expense-row,.kpi{min-width:0;max-width:100%}
+input,textarea,select{min-width:0;max-width:100%}
+.table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+
+/* PWA / iPhone safe-area */
+@media(display-mode:standalone){
+  .top{padding-top:max(8px,env(safe-area-inset-top))}
+  .sidebar{padding-bottom:max(12px,env(safe-area-inset-bottom))}
+  .page-wrap{padding-bottom:max(28px,calc(env(safe-area-inset-bottom) + 20px))}
+}
+
+@media(max-width:900px){
+  body.mobile-menu-open{overflow:hidden!important;overscroll-behavior:none}
+  .sidebar{z-index:70!important;will-change:transform}
+  .overlay{z-index:60!important}
+  .brand{position:relative;padding-right:62px!important}
+  .mobile-menu-close{right:12px!important;top:50%!important;transform:translateY(-50%)!important;width:42px!important;height:42px!important;border-radius:12px!important;font-size:29px!important}
+}
+
+@media(max-width:620px){
+  body{font-size:16px;line-height:1.5}
+  .page-wrap{width:100%!important;padding-left:max(var(--xb-safe-x),env(safe-area-inset-left))!important;padding-right:max(var(--xb-safe-x),env(safe-area-inset-right))!important;overflow-x:clip!important}
+  .panel,.formbar,.filters{width:100%!important;margin-left:0!important;margin-right:0!important}
+
+  /* Dashboard: 2 cards por linha */
+  #dashboard .cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+  #dashboard .card{min-height:118px!important;padding:14px 13px!important}
+  #dashboard .card .label{font-size:10px!important;line-height:1.3!important}
+  #dashboard .card .num{font-size:clamp(1.13rem,5.2vw,1.45rem)!important;line-height:1.12!important;overflow-wrap:anywhere}
+  #dashboard .card .hint{font-size:9.8px!important;line-height:1.35!important}
+
+  /* topo */
+  .top{padding-left:max(10px,env(safe-area-inset-left))!important;padding-right:max(10px,env(safe-area-inset-right))!important}
+  .top-left{min-width:0}
+  .top h1{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .top-actions .cloud-badge{font-size:9px!important;max-width:145px!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* formulário inicial do fechamento */
+  #fechamento .formbar{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:12px!important;overflow:hidden!important;padding:14px!important}
+  #fechamento .formbar>div{width:100%!important;min-width:0!important;max-width:100%!important}
+  #fechamento .formbar label{font-size:13px!important;font-weight:900!important}
+  #fechamento .formbar input{display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;min-height:50px!important;font-size:16px!important;padding:11px 13px!important}
+  #fechamento #date{-webkit-appearance:none!important;appearance:none!important;inline-size:100%!important;min-inline-size:0!important;max-inline-size:100%!important;overflow:hidden!important}
+  #fechamento #date::-webkit-date-and-time-value{width:100%!important;min-width:0!important;margin:0!important;text-align:left!important}
+  #fechamento #date::-webkit-datetime-edit{min-width:0!important;padding:0!important}
+  #fechamento .formbar .actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;width:100%!important}
+  #fechamento .formbar .actions .btn{width:100%!important;min-width:0!important;min-height:48px!important;font-size:13px!important}
+
+  /* Resumo financeiro: legível sem ultrapassar a tela */
+  #fechamento .financial-main-table .data-row{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:9px 12px!important;padding:13px 4px!important;align-items:center!important}
+  #fechamento .financial-main-table .data-row.head{padding-top:3px!important;padding-bottom:10px!important}
+  #fechamento .financial-main-table .data-row.head>span:first-child{grid-column:1/-1!important;font-size:11px!important;font-weight:950!important;color:var(--text)!important}
+  #fechamento .financial-main-table .data-row.head>span:nth-child(2),#fechamento .financial-main-table .data-row.head>span:nth-child(3){font-size:10.5px!important;font-weight:950!important;color:var(--muted)!important;text-align:left!important;white-space:normal!important}
+  #fechamento .financial-main-table .data-row>:first-child{grid-column:1/-1!important;font-size:14px!important;line-height:1.35!important;font-weight:900!important;overflow-wrap:anywhere!important}
+  #fechamento .financial-main-table .data-row>:nth-child(2){grid-column:1!important;min-width:0!important}
+  #fechamento .financial-main-table .data-row>:nth-child(3){grid-column:2!important;min-width:0!important;text-align:right!important}
+  #fechamento .financial-main-table .data-row input,#fechamento .financial-main-table .currency-proxy{width:100%!important;min-width:0!important;min-height:48px!important;font-size:16px!important;font-weight:900!important;text-align:right!important;border-radius:12px!important}
+  #fechamento .financial-main-table .data-row b,#fechamento .financial-main-table .data-row .money{font-size:14px!important;line-height:1.3!important;font-weight:950!important}
+  #fechamento .financial-main-table .grand-sales-row b,#fechamento .financial-main-table .grand-sales-row .money{font-size:15px!important}
+
+  /* demais campos e relatórios */
+  #fechamento input,#fechamento textarea,#historico input,#mensal input{font-size:16px!important}
+  #fechamento .cash-conference-grid{grid-template-columns:minmax(0,1fr)!important}
+  #fechamento .cash-conference-item>span{font-size:11.5px!important}
+  #fechamento .cash-conference-item>b{font-size:16px!important}
+  #fechamento .channel-row>b,#fechamento .bread-name{font-size:14px!important}
+  #fechamento .channel-row input,#fechamento .bread-cell input,#fechamento .expense-row input{font-size:16px!important;min-height:46px!important}
+  #mensal .report-meta{grid-template-columns:minmax(0,1fr)!important}
+  .report-meta-item,.reconcile,.backup-card{min-width:0!important;overflow-wrap:anywhere}
+}
+
+@media(max-width:390px){
+  .top-actions .cloud-badge{display:none!important}
+  #dashboard .card{padding:12px 10px!important}
+  #dashboard .card .label,#dashboard .card .hint{font-size:9.2px!important}
+}
+
+@media(max-width:360px){
+  #fechamento .formbar .actions{grid-template-columns:minmax(0,1fr)!important}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
