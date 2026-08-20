@@ -1,1 +1,0 @@
-O ícone 512 PNG final é gerado a partir da logo oficial. Arquivo técnico de apoio, pode ser removido após a publicação.
