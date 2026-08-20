@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — aplicativo instalável/PWA v4.15.0 */
+/* X-Burguer Caixa — aplicativo instalável/PWA v4.15.1 */
 (function(){
   function markStandalone(){
     const standalone =
@@ -16,7 +16,7 @@
 
   window.addEventListener('load',async()=>{
     try{
-      const reg=await navigator.serviceWorker.register('/xburguer-caixa/sw.js?v=4.15.0',{
+      const reg=await navigator.serviceWorker.register('/xburguer-caixa/sw.js?v=4.15.1',{
         scope:'/xburguer-caixa/',
         updateViaCache:'none'
       });
@@ -27,8 +27,5 @@
     }
   });
 
-  /*
-   * Não interceptar beforeinstallprompt.
-   * Chrome/Edge podem exibir o instalador nativo na barra de endereço.
-   */
+  /* Mantém o instalador nativo do Chrome/Edge disponível na barra de endereço. */
 })();
