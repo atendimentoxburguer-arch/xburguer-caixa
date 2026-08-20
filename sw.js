@@ -1,4 +1,4 @@
-const APP_VERSION='4.13.0';
+const APP_VERSION='4.13.2';
 
 self.addEventListener('install',()=>self.skipWaiting());
 self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
