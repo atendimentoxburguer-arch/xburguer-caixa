@@ -25,12 +25,34 @@ jobs:
           errors = []
 
           manifest = json.loads((root/'manifest.webmanifest').read_text(encoding='utf-8'))
-          if manifest.get('id') != '/xburguer-caixa/caixa-app':
+          if manifest.get('id') != '/xburguer-caixa/':
               errors.append('Manifest ID do Caixa foi alterado.')
           if manifest.get('scope') != '/xburguer-caixa/':
               errors.append('Manifest scope do Caixa foi alterado.')
-          if not str(manifest.get('start_url','')).startswith('/xburguer-caixa/'):
+          if manifest.get('start_url') != '/xburguer-caixa/':
               errors.append('start_url do Caixa saiu do caminho exclusivo.')
+          if manifest.get('display') != 'standalone':
+              errors.append('Modo standalone do Caixa foi alterado.')
+
+          icon_paths = {
+              '/xburguer-caixa/icons/xburguer-caixa-192-v4150.png',
+              '/xburguer-caixa/icons/xburguer-caixa-512-v4150.png',
+              '/xburguer-caixa/icons/xburguer-caixa-maskable-512-v4150.png'
+          }
+          manifest_icons = {
+              str(icon.get('src','')).split('?')[0].replace('./icons/','/xburguer-caixa/icons/')
+              for icon in manifest.get('icons', [])
+          }
+          if not icon_paths.issubset(manifest_icons):
+              errors.append('Manifest não contém todos os ícones oficiais do Caixa.')
+
+          for rel in [
+              'icons/xburguer-caixa-192-v4150.png',
+              'icons/xburguer-caixa-512-v4150.png',
+              'icons/xburguer-caixa-maskable-512-v4150.png'
+          ]:
+              if not (root/rel).exists():
+                  errors.append(f'Ícone obrigatório ausente: {rel}')
 
           sw = (root/'sw.js').read_text(encoding='utf-8')
           if "const APP_PATH='/xburguer-caixa/';" not in sw:
@@ -72,5 +94,5 @@ jobs:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
 
-          print('OK: Controle de Caixa isolado do Controle de Consumo.')
+          print('OK: Controle de Caixa isolado e PWA configurado corretamente.')
           PY
