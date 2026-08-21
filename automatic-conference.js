@@ -1,5 +1,6 @@
 /* X-Burguer Caixa — conferência automática + contagem física opcional v4.18.1 */
 (function(){
+  const AUTO_VERSION='4.18.1';
   const roundMoney=n=>Math.round((Number(n||0)+Number.EPSILON)*100)/100;
   const countedWasEntered=()=>String(document.getElementById('countedCash')?.value??'').trim()!=='';
 
@@ -124,6 +125,33 @@
       return result;
     };
   }
+
+  /* Mantém a versão exibida e os backups alinhados com esta atualização. */
+  window.XB_APP_VERSION=AUTO_VERSION;
+  if(typeof exportJSON==='function'){
+    exportJSON=function(){
+      const data={version:AUTO_VERSION,exportedAt:new Date().toISOString(),records:load()};
+      download(`xburguer-backup-${isoToday()}.json`,JSON.stringify(data,null,2),'application/json');
+      const now=new Date().toLocaleString('pt-BR');
+      localStorage.setItem(BACKUP_KEY,now);
+      refreshBackup();
+      toast('Backup JSON exportado.');
+    };
+  }
+
+  function applyVersion(){
+    document.documentElement.dataset.appVersion=AUTO_VERSION;
+    document.querySelectorAll('.reconcile').forEach(item=>{
+      const label=item.querySelector('span');
+      const value=item.querySelector('b');
+      if(label&&value&&label.textContent.trim()==='Versão')value.textContent=AUTO_VERSION;
+    });
+  }
+  if(typeof refreshBackup==='function'){
+    const previousRefreshBackup=refreshBackup;
+    refreshBackup=function(){const result=previousRefreshBackup.apply(this,arguments);applyVersion();return result;};
+  }
+  applyVersion();
 
   /* Reprocessa qualquer dado que já tenha chegado da nuvem antes desta camada carregar. */
   try{
