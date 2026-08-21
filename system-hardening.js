@@ -1,16 +1,30 @@
-/* X-Burguer Caixa — estabilidade funcional v4.14.3 */
-const XB_APP_VERSION='4.14.3';
+/* X-Burguer Caixa — estabilidade funcional consolidada v4.18.0 */
+const XB_APP_VERSION='4.18.0';
 window.XB_APP_VERSION=XB_APP_VERSION;
 let xbAuthRefreshPromise=null;
 
-/* Impede duas renovações do mesmo refresh token ao mesmo tempo. */
+function xbIsNetworkError(err){
+  const msg=String(err?.message||err||'').toLowerCase();
+  return !navigator.onLine ||
+    msg.includes('não foi possível conectar') ||
+    msg.includes('demorou demais') ||
+    msg.includes('network') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('fetch failed');
+}
+window.xbIsNetworkError=xbIsNetworkError;
+
+/* Impede duas renovações do mesmo refresh token ao mesmo tempo e não destrói
+   a sessão por causa de uma queda temporária de internet. */
 refreshAuthSession=async function(remember=true){
   if(xbAuthRefreshPromise)return xbAuthRefreshPromise;
   xbAuthRefreshPromise=(async()=>{
     if(!authSession?.refresh_token)throw new Error('Sessão expirada. Entre novamente.');
     try{
       const data=await authFetch('token?grant_type=refresh_token',{refresh_token:authSession.refresh_token});
-      authSession=normalizeSession(data);
+      const refreshed=normalizeSession(data);
+      if(!refreshed?.access_token)throw new Error('O servidor não retornou uma sessão válida.');
+      authSession=refreshed;
       currentUser=authSession.user;
       persistSession(authSession,remember);
       try{
@@ -20,6 +34,7 @@ refreshAuthSession=async function(remember=true){
       }catch{}
       return authSession;
     }catch(err){
+      if(xbIsNetworkError(err))throw err;
       try{clearStoredSessions()}catch{}
       authSession=null;currentUser=null;currentProfile=null;
       throw new Error('Sua sessão expirou. Entre novamente para continuar.');
@@ -28,6 +43,79 @@ refreshAuthSession=async function(remember=true){
     }
   })();
   return xbAuthRefreshPromise;
+};
+
+/* Busca todos os fechamentos em páginas. Evita o limite padrão da API
+   truncar o histórico depois de muitos meses/anos de uso. */
+loadCloudData=function(){
+  if(cloudLoadPromise)return cloudLoadPromise;
+  cloudLoadPromise=(async()=>{
+    setCloudStatus('● Sincronizando...','syncing');
+    try{
+      const select='*,channel_sales(channel_name,order_count,amount),bread_controls(bread_type,opening_stock,production,out_qty,closing_stock),online_orders(platform,order_count,amount),expenses(description,amount)';
+      const pageSize=500;
+      let offset=0;
+      const all=[];
+      while(true){
+        const rows=await sbRest(`cash_closings?select=${encodeURIComponent(select)}&order=business_date.asc&limit=${pageSize}&offset=${offset}`);
+        const batch=Array.isArray(rows)?rows:[];
+        all.push(...batch);
+        if(batch.length<pageSize)break;
+        offset+=pageSize;
+      }
+      cloudData=all.map(cloudToRecord);
+      lastSyncAt=new Date();
+      setCloudStatus('● Banco na nuvem','online');
+      updateSyncUi();
+      return cloudData;
+    }catch(err){
+      setCloudStatus(navigator.onLine?'● Erro de sincronização':'● Sem internet','error');
+      throw err;
+    }finally{
+      cloudLoadPromise=null;
+    }
+  })();
+  return cloudLoadPromise;
+};
+
+function xbApplyCashRule(rec){
+  if(!rec)return rec;
+  const expected=Math.round((Number(rec.cash||0)-Number(rec.cashOut||0))*100)/100;
+  rec.expectedCash=expected;
+  rec.cashDifference=Math.round((Number(rec.countedCash||0)-expected)*100)/100;
+  return rec;
+}
+
+/* Regra oficial da conferência física:
+   V. Dinheiro (Caixa) - dinheiro retirado para despesas.
+   Saldo inicial não entra na conferência física. */
+const xbOriginalCurrentRecord=currentRecord;
+currentRecord=function(dateOverride=null){
+  return xbApplyCashRule(xbOriginalCurrentRecord(dateOverride));
+};
+
+const xbOriginalNormalize=normalize;
+normalize=function(record){
+  return xbApplyCashRule(xbOriginalNormalize(record));
+};
+
+const xbOriginalCalc=calc;
+calc=function(){
+  const result=xbOriginalCalc.apply(this,arguments);
+  const diffEl=$('cashDiff');
+  if(diffEl){
+    const countedRaw=String($('countedCash')?.value??'').trim();
+    if(!countedRaw){
+      diffEl.textContent='—';
+      diffEl.classList.remove('positive','negative');
+    }else{
+      const expected=n('cash')-n('cashOut');
+      const diff=n('countedCash')-expected;
+      diffEl.textContent=br(diff);
+      setTone(diffEl,diff);
+    }
+  }
+  return result;
 };
 
 /* Bloqueia também os campos visuais formatados em Real durante gravações. */
@@ -66,23 +154,66 @@ exportJSON=function(){
   toast('Backup JSON exportado.');
 };
 
-/* Valida o arquivo inteiro antes de iniciar uma restauração. */
+/* Safari/iOS pode cancelar downloads quando o Object URL é revogado cedo demais. */
+download=function(name,content,type){
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+};
+
+/* Valida todo o backup antes de enviá-lo ao banco. */
 validateBackupRecords=function(records){
   if(!Array.isArray(records))return'O arquivo não contém uma lista de fechamentos.';
   if(records.length>10000)return'O backup possui registros demais para uma única importação.';
   const dates=new Set();
+  const validMoney=v=>v===undefined||v===null||v===''||(Number.isFinite(Number(v))&&Number(v)>=0);
+  const validQty=v=>v===undefined||v===null||v===''||(Number.isInteger(Number(v))&&Number(v)>=0);
+
   for(let i=0;i<records.length;i++){
     const r=records[i];
     if(!r||typeof r!=='object'||Array.isArray(r))return`Registro ${i+1} do backup é inválido.`;
+
     const date=String(r.date||'');
     if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return`Registro ${i+1} está sem uma data válida.`;
     const parsed=new Date(date+'T12:00:00');
     if(Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==date)return`Registro ${i+1} possui uma data inexistente.`;
     if(dates.has(date))return`O backup possui mais de um fechamento para ${date}. Remova a duplicidade antes de importar.`;
     dates.add(date);
+
+    if(!String(r.resp||'').trim())return`Registro ${i+1} está sem responsável.`;
+
     const moneyFields=['opening','cash','cardOut','onlinePayment','deliveryCard','cashOut','countedCash','sales','expense'];
     for(const key of moneyFields){
-      if(r[key]!==undefined&&r[key]!==null&&r[key]!==''&&(!Number.isFinite(Number(r[key]))||Number(r[key])<0))return`Registro ${i+1} possui valor financeiro inválido em ${key}.`;
+      if(!validMoney(r[key]))return`Registro ${i+1} possui valor financeiro inválido em ${key}.`;
+    }
+
+    const recordChannels=Array.isArray(r.channels)?r.channels:[];
+    for(const c of recordChannels){
+      if(!validQty(c?.q)||!validMoney(c?.v))return`Registro ${i+1} possui dados inválidos em vendas por canal.`;
+    }
+
+    const online=r.online||{};
+    for(const key of ['anotaQtd','aiqQtd']){
+      if(!validQty(online[key]))return`Registro ${i+1} possui quantidade online inválida.`;
+    }
+    for(const key of ['anotaVal','aiqVal']){
+      if(!validMoney(online[key]))return`Registro ${i+1} possui valor online inválido.`;
+    }
+
+    const breads=r.breads||{};
+    for(const key of ['idealStart','idealProd','idealOut','gourmetStart','gourmetProd','gourmetOut']){
+      if(!validQty(breads[key]))return`Registro ${i+1} possui quantidade de pão inválida.`;
+    }
+
+    const expenses=Array.isArray(r.expenses)?r.expenses:[];
+    for(const e of expenses){
+      if(!validMoney(e?.val))return`Registro ${i+1} possui despesa com valor inválido.`;
+      if(Number(e?.val||0)>0&&!String(e?.d||'').trim())return`Registro ${i+1} possui despesa sem descrição.`;
     }
   }
   return true;
