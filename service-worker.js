@@ -1,19 +1,9 @@
-const CACHE_NAME = "xburguer-caixa-pwa-v4.16.0";
+const CACHE_NAME = "xburguer-caixa-pwa-v4.16.1";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./style1.css","./style2.css","./style3.css","./style4.css","./style5.css",
-  "./responsive.css","./responsive-polish.css","./mobile-menu-hotfix.css","./mobile-readable.css",
-  "./currency-format.css","./page-transitions.css","./login-transitions.css","./system-final.css","./version.css",
-  "./shell1.js","./shell2.js","./shell3.js","./shell4.js","./shell5.js","./shell6.js","./shell7.js","./shell8.js","./shell-end.js",
-  "./logo1.js","./logo2.js","./logo3.js","./logo4.js","./logo5.js","./logo-end.js",
-  "./storage-namespace.js",
-  "./app1.js","./app2.js","./app3.js","./app4.js","./system-hardening.js","./app5.js","./system-guard.js",
-  "./realtime.js","./mobile-menu-fix.js","./currency-format.js",
-  "./icons/xburguer-caixa-32-v4152.png",
-  "./icons/xburguer-caixa-48-v4152.png",
   "./icons/xburguer-caixa-192-v4150.png",
   "./icons/xburguer-caixa-512-v4150.png",
   "./icons/xburguer-caixa-maskable-512-v4150.png"
@@ -47,18 +37,17 @@ self.addEventListener("fetch", event => {
 
   event.respondWith((async () => {
     try {
-      const networkRequest = new Request(request, { cache: "no-store" });
-      const response = await fetch(networkRequest);
+      const response = await fetch(new Request(request, {cache:"no-store"}));
       if (response && response.ok) {
         const cache = await caches.open(CACHE_NAME);
         cache.put(request, response.clone()).catch(() => {});
       }
       return response;
     } catch (_) {
-      const cached = await caches.match(request, { ignoreSearch: true });
+      const cached = await caches.match(request, {ignoreSearch:true});
       if (cached) return cached;
       if (request.mode === "navigate") {
-        return await caches.match("./index.html", { ignoreSearch: true });
+        return await caches.match("./index.html", {ignoreSearch:true});
       }
       return Response.error();
     }
