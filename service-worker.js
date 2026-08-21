@@ -11,7 +11,7 @@ const PRECACHE = [
   "./cash-conference-help.css","./version.css",
   "./shell1.js","./shell2.js","./shell3.js","./shell4.js","./shell5.js","./shell6.js","./shell7.js","./shell8.js","./shell-end.js",
   "./logo1.js","./logo2.js","./logo3.js","./logo4.js","./logo5.js","./logo-end.js",
-  "./storage-namespace.js","./app1.js","./app2.js","./app3.js","./app4.js","./system-hardening.js","./app5.js",
+  "./identity-guard.js","./storage-namespace.js","./app1.js","./app2.js","./app3.js","./app4.js","./system-hardening.js","./app5.js",
   "./system-guard.js","./realtime.js","./mobile-menu-fix.js","./currency-format.js","./automatic-conference.js","./cash-conference-help.js","./pwa.js",
   "./icons/xburguer-caixa-32-v4152.png",
   "./icons/xburguer-caixa-48-v4152.png",
