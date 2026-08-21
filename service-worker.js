@@ -1,12 +1,9 @@
-const CACHE_NAME = "xburguer-caixa-pwa-v4.16.1";
+const CACHE_NAME = "xburguer-caixa-pwa-v4.16.2";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
   "./",
   "./index.html",
-  "./manifest.webmanifest",
-  "./icons/xburguer-caixa-192-v4150.png",
-  "./icons/xburguer-caixa-512-v4150.png",
-  "./icons/xburguer-caixa-maskable-512-v4150.png"
+  "./manifest.webmanifest"
 ];
 
 self.addEventListener("install", event => {
