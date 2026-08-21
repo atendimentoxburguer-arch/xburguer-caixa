@@ -3,6 +3,7 @@
   const brl=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
   const num=id=>Number(document.getElementById(id)?.value||0);
   const hasValue=id=>String(document.getElementById(id)?.value??'').trim()!=='';
+  const setText=(el,text)=>{if(el&&el.textContent!==text)el.textContent=text;};
 
   function visibleElement(id){
     const raw=document.getElementById(id);
@@ -17,7 +18,7 @@
   function setLabel(id,text){
     const item=getItem(id);
     const label=item?.querySelector('span');
-    if(label)label.textContent=text;
+    if(label)setText(label,text);
   }
 
   function addHelp(id,text){
@@ -30,7 +31,7 @@
       help.dataset.help='main';
       item.appendChild(help);
     }
-    help.textContent=text;
+    setText(help,text);
     return item;
   }
 
@@ -73,30 +74,30 @@
     if(!cashItem||!diffEl||!expectedEl||!statusEl)return;
 
     const expected=expectedCashNow();
-    expectedEl.textContent='Esperado na gaveta: '+brl.format(expected)+'  •  V. Dinheiro − retiradas';
+    setText(expectedEl,'Esperado na gaveta: '+brl.format(expected)+'  •  V. Dinheiro − retiradas');
 
     cashItem.classList.remove('is-ok','is-short','is-over');
 
     if(!hasValue('countedCash')){
-      diffEl.textContent='—';
+      setText(diffEl,'—');
       diffEl.className='';
-      statusEl.textContent='Aguardando contagem da gaveta';
+      setText(statusEl,'Aguardando contagem da gaveta');
       return;
     }
 
     const diff=num('countedCash')-expected;
-    diffEl.textContent=brl.format(diff);
+    setText(diffEl,brl.format(diff));
     if(typeof window.setTone==='function')window.setTone(diffEl,diff);
 
     if(Math.abs(diff)<0.005){
       cashItem.classList.add('is-ok');
-      statusEl.textContent='✓ Dinheiro conferido';
+      setText(statusEl,'✓ Dinheiro conferido');
     }else if(diff<0){
       cashItem.classList.add('is-short');
-      statusEl.textContent='Falta '+brl.format(Math.abs(diff));
+      setText(statusEl,'Falta '+brl.format(Math.abs(diff)));
     }else{
       cashItem.classList.add('is-over');
-      statusEl.textContent='Sobra '+brl.format(diff);
+      setText(statusEl,'Sobra '+brl.format(diff));
     }
   }
 
@@ -116,7 +117,7 @@
     if(!grid)return;
 
     const title=document.querySelector('.cash-conference-title');
-    if(title)title.textContent='Conferência do dinheiro em espécie';
+    if(title)setText(title,'Conferência do dinheiro em espécie');
 
     setLabel('countedCash','Dinheiro contado na gaveta');
     setLabel('paymentTotal','Pagamentos informados');
