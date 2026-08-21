@@ -32,23 +32,28 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   const request = event.request;
   if (request.method !== "GET") return;
+
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || !url.pathname.startsWith(APP_PATH)) return;
 
   event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+
     try {
-      const response = await fetch(new Request(request, {cache:"no-store"}));
+      const response = await fetch(new Request(request, { cache: "no-store" }));
       if (response && response.ok) {
-        const cache = await caches.open(CACHE_NAME);
         cache.put(request, response.clone()).catch(() => {});
       }
       return response;
     } catch (_) {
-      const cached = await caches.match(request, {ignoreSearch:true});
+      // Procura SOMENTE no cache exclusivo do Caixa.
+      const cached = await cache.match(request, { ignoreSearch: true });
       if (cached) return cached;
+
       if (request.mode === "navigate") {
-        return await caches.match("./index.html", {ignoreSearch:true});
+        return await cache.match("./index.html", { ignoreSearch: true });
       }
+
       return Response.error();
     }
   })());
