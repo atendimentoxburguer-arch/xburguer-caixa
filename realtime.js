@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — sincronização em tempo real resiliente v4.14.1 */
+/* X-Burguer Caixa — sincronização em tempo real resiliente v4.18.0 */
 let realtimeClient=null;
 let realtimeChannel=null;
 let realtimeUserId=null;
@@ -29,7 +29,7 @@ function applyAutomaticSyncUI(){
   }
 
   const info=document.getElementById('syncInfo');
-  if(info)info.textContent='Conectando ao tempo real...';
+  if(info)info.textContent=navigator.onLine?'Conectando ao tempo real...':'Sem internet • rascunho local disponível';
 }
 
 applyAutomaticSyncUI();
@@ -60,8 +60,9 @@ function scheduleRealtimeRestart(delay=1800){
 
 function scheduleRealtimeReload(){
   clearTimeout(realtimeReloadTimer);
+  if(!navigator.onLine)return;
   realtimeReloadTimer=setTimeout(async()=>{
-    if(!authSession?.access_token)return;
+    if(!authSession?.access_token||!navigator.onLine)return;
     if(saveInProgress||deleteInProgress||manualSyncInProgress){
       scheduleRealtimeReload();
       return;
@@ -84,6 +85,13 @@ function scheduleRealtimeReload(){
 }
 
 async function startRealtimeSync(force=false){
+  if(!navigator.onLine){
+    realtimeState='idle';
+    realtimeStatus('● Sem internet','error');
+    const info=document.getElementById('syncInfo');
+    if(info)info.textContent='Sem internet • sincronização retomará automaticamente';
+    return false;
+  }
   if(!authSession?.access_token||!currentUser?.id)return false;
   if(!window.supabase?.createClient)return false;
 
@@ -96,7 +104,7 @@ async function startRealtimeSync(force=false){
   }
 
   await stopRealtimeSync();
-  if(!authSession?.access_token||!currentUser?.id)return false;
+  if(!navigator.onLine||!authSession?.access_token||!currentUser?.id)return false;
 
   realtimeUserId=currentUser.id;
   realtimeToken=authSession.access_token;
@@ -121,13 +129,13 @@ async function startRealtimeSync(force=false){
         if(info)info.textContent='Tempo real ativo';
       }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
         realtimeState='error';
-        realtimeStatus('● Nuvem • reconectando...','syncing');
+        realtimeStatus(navigator.onLine?'● Nuvem • reconectando...':'● Sem internet',navigator.onLine?'syncing':'error');
         const info=document.getElementById('syncInfo');
-        if(info)info.textContent='Reconectando automaticamente...';
-        scheduleRealtimeRestart();
+        if(info)info.textContent=navigator.onLine?'Reconectando automaticamente...':'Sem internet • aguardando conexão';
+        if(navigator.onLine)scheduleRealtimeRestart();
       }else if(status==='CLOSED'&&!realtimeStopping){
         realtimeState='error';
-        if(authSession){
+        if(authSession&&navigator.onLine){
           realtimeStatus('● Nuvem • reconectando...','syncing');
           scheduleRealtimeRestart();
         }
@@ -139,6 +147,7 @@ async function startRealtimeSync(force=false){
 
 /* Verificação leve de segurança; reconexões normais continuam orientadas por eventos. */
 setInterval(()=>{
+  if(!navigator.onLine)return;
   if(authSession?.access_token&&currentUser?.id){
     if(!realtimeChannel||realtimeState==='error'||realtimeState==='idle')startRealtimeSync(realtimeState==='error').catch(()=>{});
     else if(realtimeToken!==authSession.access_token)startRealtimeSync(false).catch(()=>{});
@@ -148,7 +157,7 @@ setInterval(()=>{
 },10000);
 
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState!=='visible'||!authSession?.access_token)return;
+  if(document.visibilityState!=='visible'||!navigator.onLine||!authSession?.access_token)return;
   startRealtimeSync(realtimeState==='error').then(async()=>{
     try{
       await loadCloudData();
@@ -164,8 +173,13 @@ window.addEventListener('online',()=>{
 });
 
 window.addEventListener('offline',()=>{
-  realtimeState='error';
+  realtimeState='idle';
   clearTimeout(realtimeReconnectTimer);
+  clearTimeout(realtimeReloadTimer);
+  realtimeStatus('● Sem internet','error');
+  const info=document.getElementById('syncInfo');
+  if(info)info.textContent='Sem internet • sincronização retomará automaticamente';
+  if(realtimeChannel)stopRealtimeSync().catch(()=>{});
 });
 
 const realtimeLogoutBtn=document.getElementById('logoutBtn');
