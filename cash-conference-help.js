@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — ajuda visual da conferência v4.18.0 */
+/* X-Burguer Caixa — conferência automática visual v4.18.1 */
 (function(){
   const brl=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
   const num=id=>Number(document.getElementById(id)?.value||0);
@@ -36,8 +36,54 @@
   }
 
   function expectedCashNow(){return num('cash')-num('cashOut');}
+  function salesNow(){
+    try{return channels.reduce((total,_,i)=>total+num('v'+i),0)}catch{return num('daySales')}
+  }
+  function paymentNow(){return num('cash')+num('cardOut')+num('online')+num('deliveryCard');}
 
-  function update(){
+  function ensureAutomaticSummary(){
+    const title=document.querySelector('.cash-conference-title');
+    if(!title)return null;
+    let summary=document.getElementById('automaticConferenceSummary');
+    if(!summary){
+      summary=document.createElement('div');
+      summary.id='automaticConferenceSummary';
+      summary.className='automatic-conference-summary';
+      summary.innerHTML='<div class="automatic-conference-status" id="automaticConferenceStatus">Aguardando lançamentos</div><div class="automatic-conference-detail" id="automaticConferenceDetail"></div>';
+      title.insertAdjacentElement('afterend',summary);
+    }
+    return summary;
+  }
+
+  function updateAutomaticSummary(){
+    const summary=ensureAutomaticSummary();
+    const status=document.getElementById('automaticConferenceStatus');
+    const detail=document.getElementById('automaticConferenceDetail');
+    if(!summary||!status||!detail)return;
+
+    const sales=salesNow();
+    const payments=paymentNow();
+    const diff=payments-sales;
+    const expected=expectedCashNow();
+    summary.classList.remove('is-ok','is-alert','is-empty');
+
+    if(Math.abs(sales)<0.005&&Math.abs(payments)<0.005){
+      summary.classList.add('is-empty');
+      setText(status,'Aguardando os lançamentos do fechamento');
+    }else if(Math.abs(diff)<0.005){
+      summary.classList.add('is-ok');
+      setText(status,'✓ Vendas e pagamentos conferidos automaticamente');
+    }else{
+      summary.classList.add('is-alert');
+      setText(status,diff>0
+        ? 'Atenção: pagamentos estão '+brl.format(Math.abs(diff))+' acima das vendas'
+        : 'Atenção: faltam '+brl.format(Math.abs(diff))+' nas formas de pagamento');
+    }
+
+    setText(detail,'Vendas: '+brl.format(sales)+' • Pagamentos: '+brl.format(payments)+' • Dinheiro previsto após retiradas: '+brl.format(expected));
+  }
+
+  function updatePhysicalCheck(){
     const cashItem=getItem('cashDiff');
     const diffEl=document.getElementById('cashDiff');
     const expectedEl=document.getElementById('cashExpectedHelp');
@@ -45,13 +91,13 @@
     if(!cashItem||!diffEl||!expectedEl||!statusEl)return;
 
     const expected=expectedCashNow();
-    setText(expectedEl,'Esperado na gaveta: '+brl.format(expected)+' • V. Dinheiro − retiradas');
+    setText(expectedEl,'Previsto pelas informações acima: '+brl.format(expected)+' • V. Dinheiro − retiradas');
     cashItem.classList.remove('is-ok','is-short','is-over');
 
     if(!hasValue('countedCash')){
       setText(diffEl,'—');
       diffEl.classList.remove('positive','negative');
-      setText(statusEl,'Aguardando contagem da gaveta');
+      setText(statusEl,'Contagem física não informada • opcional');
       return;
     }
 
@@ -61,14 +107,19 @@
 
     if(Math.abs(diff)<0.005){
       cashItem.classList.add('is-ok');
-      setText(statusEl,'✓ Dinheiro conferido');
+      setText(statusEl,'✓ Dinheiro físico conferido');
     }else if(diff<0){
       cashItem.classList.add('is-short');
-      setText(statusEl,'Falta '+brl.format(Math.abs(diff)));
+      setText(statusEl,'Falta '+brl.format(Math.abs(diff))+' na gaveta');
     }else{
       cashItem.classList.add('is-over');
-      setText(statusEl,'Sobra '+brl.format(diff));
+      setText(statusEl,'Sobra '+brl.format(diff)+' na gaveta');
     }
+  }
+
+  function update(){
+    updateAutomaticSummary();
+    updatePhysicalCheck();
   }
 
   function setup(){
@@ -76,19 +127,19 @@
     if(!grid)return;
 
     const title=document.querySelector('.cash-conference-title');
-    if(title)setText(title,'Conferência do dinheiro em espécie');
+    if(title)setText(title,'Conferência automática do fechamento');
 
-    setLabel('countedCash','Dinheiro contado na gaveta');
-    setLabel('paymentTotal','Pagamentos informados');
-    setLabel('paymentDiff','Diferença pagamentos × vendas');
-    setLabel('cashDiff','Diferença do dinheiro físico');
-    setLabel('dayBalance','Resultado do dia');
+    setLabel('countedCash','Contagem física da gaveta — opcional');
+    setLabel('paymentTotal','Pagamentos informados — automático');
+    setLabel('paymentDiff','Diferença pagamentos × vendas — automático');
+    setLabel('cashDiff','Diferença física — somente se contar a gaveta');
+    setLabel('dayBalance','Resultado do dia — automático');
 
-    addHelp('countedCash','Informe somente as notas e moedas realmente encontradas na gaveta.');
-    addHelp('paymentTotal','Soma de dinheiro, cartões e Pix/apps informados no resumo financeiro.');
-    addHelp('paymentDiff','R$ 0,00 significa que as formas de pagamento batem com o total de vendas.');
-    const cashItem=addHelp('cashDiff','Compara o dinheiro contado com V. Dinheiro (Caixa) menos as retiradas para despesas. O Saldo Inicial não entra nesta conferência.');
-    addHelp('dayBalance','Resultado = total de vendas − despesas registradas no dia.');
+    addHelp('countedCash','Preencha apenas se quiser comparar o dinheiro real da gaveta com o valor previsto pelo sistema.');
+    addHelp('paymentTotal','Calculado automaticamente somando dinheiro, cartões e Pix/apps informados acima.');
+    addHelp('paymentDiff','R$ 0,00 significa que as formas de pagamento batem com o total das vendas por canal.');
+    const cashItem=addHelp('cashDiff','Essa verificação é opcional. Sem contagem física, o fechamento financeiro continua funcionando normalmente.');
+    addHelp('dayBalance','Calculado automaticamente: total de vendas − despesas registradas no dia.');
 
     if(cashItem&&!document.getElementById('cashExpectedHelp')){
       const expected=document.createElement('small');
@@ -100,24 +151,22 @@
       const status=document.createElement('span');
       status.id='cashConferenceStatus';
       status.className='cash-conference-status';
-      status.textContent='Aguardando contagem da gaveta';
+      status.textContent='Contagem física não informada • opcional';
       cashItem.appendChild(status);
     }
+
+    ensureAutomaticSummary();
     update();
   }
 
   function boot(){
     setup();
-    ['cash','cashOut','countedCash'].forEach(id=>{
+    document.addEventListener('input',()=>setTimeout(update,0));
+    document.addEventListener('change',()=>setTimeout(update,0));
+    ['paymentTotal','paymentDiff','daySales','dayBalance'].forEach(id=>{
       const el=document.getElementById(id);
-      if(el){el.addEventListener('input',()=>setTimeout(update,0));el.addEventListener('change',()=>setTimeout(update,0));}
+      if(el)new MutationObserver(()=>setTimeout(update,0)).observe(el,{childList:true,characterData:true,subtree:true});
     });
-    document.addEventListener('input',e=>{
-      const id=e.target?.id||'';
-      if(['cash__brl','cashOut__brl','countedCash__brl'].includes(id))setTimeout(update,0);
-    });
-    const diff=document.getElementById('cashDiff');
-    if(diff)new MutationObserver(()=>setTimeout(update,0)).observe(diff,{childList:true,characterData:true,subtree:true});
     window.addEventListener('pageshow',()=>setTimeout(update,0));
   }
 
