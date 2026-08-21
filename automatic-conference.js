@@ -1,6 +1,6 @@
-/* X-Burguer Caixa — conferência automática + contagem física opcional v4.18.1 */
+/* X-Burguer Caixa — conferência automática + contagem física opcional v4.18.2 */
 (function(){
-  const AUTO_VERSION='4.18.1';
+  const AUTO_VERSION='4.18.2';
   const roundMoney=n=>Math.round((Number(n||0)+Number.EPSILON)*100)/100;
   const countedWasEntered=()=>String(document.getElementById('countedCash')?.value??'').trim()!=='';
 
