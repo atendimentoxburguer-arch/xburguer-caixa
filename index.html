@@ -62,21 +62,6 @@
 <script src="realtime.js?v=4.16.3"></script>
 <script src="mobile-menu-fix.js?v=4.16.3"></script>
 <script src="currency-format.js?v=4.16.3"></script>
-<script>
-window.addEventListener('load', async function(){
-  try{
-    if('serviceWorker' in navigator){
-      const reg = await navigator.serviceWorker.register(
-        '/xburguer-caixa/service-worker.js?v=4.16.3',
-        {scope:'/xburguer-caixa/', updateViaCache:'none'}
-      );
-      reg.update().catch(()=>{});
-      await navigator.serviceWorker.ready.catch(()=>{});
-    }
-  }catch(e){
-    console.warn('PWA Caixa:', e);
-  }
-});
-</script>
+<script src="pwa.js?v=4.16.3"></script>
 </body>
 </html>
