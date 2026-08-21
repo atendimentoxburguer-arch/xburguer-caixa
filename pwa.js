@@ -1,9 +1,9 @@
-/* Compatibilidade com versões antigas do X-Burguer Caixa — v4.16.2 */
+/* Compatibilidade com versões antigas do X-Burguer Caixa — v4.16.3 */
 (function(){
   if(!('serviceWorker' in navigator))return;
   window.addEventListener('load',async()=>{
     try{
-      const reg=await navigator.serviceWorker.register('/xburguer-caixa/service-worker.js?v=4.16.2',{
+      const reg=await navigator.serviceWorker.register('/xburguer-caixa/service-worker.js?v=4.16.3',{
         scope:'/xburguer-caixa/',
         updateViaCache:'none'
       });
