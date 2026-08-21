@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — formatação monetária BRL v4.14.1 */
+/* X-Burguer Caixa — formatação monetária BRL v4.17.1 */
 (function(){
   const nativeValue=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
   if(!nativeValue?.get||!nativeValue?.set)return;
@@ -50,6 +50,16 @@
     return String(rounded).replace('.',',');
   }
 
+  function removeStaleRawField(id,current){
+    // As despesas são recriadas ao trocar data, limpar ou carregar um fechamento.
+    // Os inputs numéricos originais ficam neste host oculto para manter compatibilidade
+    // com os cálculos antigos. Remove qualquer versão anterior com o mesmo ID para que
+    // document.getElementById() nunca leia um campo velho e zerado.
+    [...rawHost.children].forEach(el=>{
+      if(el!==current&&el instanceof HTMLInputElement&&el.id===id)el.remove();
+    });
+  }
+
   function decorate(original){
     if(!(original instanceof HTMLInputElement))return;
     const id=original.id||'';
@@ -57,6 +67,8 @@
 
     const parent=original.parentNode;
     if(!parent)return;
+
+    removeStaleRawField(id,original);
 
     const proxy=document.createElement('input');
     proxy.type='text';
