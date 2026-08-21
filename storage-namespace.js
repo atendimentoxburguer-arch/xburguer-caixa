@@ -87,4 +87,14 @@
   proto.key = function (index) {
     return logicalKey(originalKey.call(this, index));
   };
+
+  // Nunca permite que um clear() executado pelo Caixa apague o storage do Consumo.
+  proto.clear = function () {
+    const remover = [];
+    for (let i = 0; i < this.length; i++) {
+      const key = originalKey.call(this, i);
+      if (key && key.startsWith(NS)) remover.push(key);
+    }
+    remover.forEach(key => originalRemove.call(this, key));
+  };
 })();
