@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Conferir isolamento e PWA do Controle de Caixa
+      - name: Conferir isolamento total do X-Burguer Caixa
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -35,14 +35,21 @@ jobs:
               errors.append('Modo standalone do Caixa foi alterado.')
 
           required_icons = {
-              '/xburguer-controle/icons/xburguer-rounded-180.png',
-              '/xburguer-controle/icons/xburguer-rounded-192.png',
-              '/xburguer-controle/icons/xburguer-rounded-512.png',
-              '/xburguer-controle/icons/xburguer-rounded-maskable-512.png'
+              './icons/xburguer-caixa-192-v4150.png',
+              './icons/xburguer-caixa-512-v4150.png',
+              './icons/xburguer-caixa-maskable-512-v4150.png'
           }
           manifest_icons = {str(icon.get('src','')) for icon in manifest.get('icons', [])}
           if not required_icons.issubset(manifest_icons):
-              errors.append('Manifest não contém os ícones oficiais já validados da X-Burguer.')
+              errors.append('Manifest não contém os ícones exclusivos do Caixa.')
+
+          for rel in [
+              'icons/xburguer-caixa-192-v4150.png',
+              'icons/xburguer-caixa-512-v4150.png',
+              'icons/xburguer-caixa-maskable-512-v4150.png'
+          ]:
+              if not (root/rel).exists():
+                  errors.append(f'Ícone obrigatório ausente: {rel}')
 
           sw_path = root/'service-worker.js'
           if not sw_path.exists():
@@ -51,8 +58,6 @@ jobs:
               sw = sw_path.read_text(encoding='utf-8')
               if 'const APP_PATH = "/xburguer-caixa/";' not in sw:
                   errors.append('Service Worker do Caixa perdeu o limite de caminho.')
-              if 'xburguer-consumo-' in sw:
-                  errors.append('Service Worker do Caixa contém cache do Consumo.')
 
           index = (root/'index.html').read_text(encoding='utf-8')
           if '/xburguer-caixa/service-worker.js' not in index or "scope:'/xburguer-caixa/'" not in index:
@@ -64,14 +69,12 @@ jobs:
           if 'rrslolruacewjijlhpdc' in app1:
               errors.append('Caixa contém referência ao banco do outro sistema.')
 
-          if not (root/'storage-namespace.js').exists():
-              errors.append('Camada de isolamento do armazenamento local do Caixa não existe.')
-
           runtime_files = [
-              root/'service-worker.js', root/'app1.js', root/'app2.js', root/'app3.js',
+              root/'index.html', root/'manifest.webmanifest', root/'service-worker.js',
+              root/'pwa.js', root/'sw.js', root/'app1.js', root/'app2.js', root/'app3.js',
               root/'app4.js', root/'app5.js', root/'storage-namespace.js'
           ]
-          forbidden = ['rrslolruacewjijlhpdc', 'xburguer-consumo-']
+          forbidden = ['/xburguer-controle/', 'xburguer-consumo-', 'rrslolruacewjijlhpdc']
           for path in runtime_files:
               if not path.exists():
                   continue
@@ -80,18 +83,9 @@ jobs:
                   if token in text:
                       errors.append(f'{path}: referência proibida do outro sistema: {token}')
 
-          # O Caixa reutiliza apenas os PNGs oficiais do outro projeto, que já são
-          # reconhecidos pelo Chrome/Windows. Nenhuma lógica, página ou banco é compartilhado.
-          for path in [root/'manifest.webmanifest', root/'index.html']:
-              text = path.read_text(encoding='utf-8', errors='ignore')
-              refs = [part for part in text.split('"') if '/xburguer-controle/' in part]
-              for ref in refs:
-                  if not ref.startswith('/xburguer-controle/icons/'):
-                      errors.append(f'{path}: referência ao outro projeto fora da pasta de ícones: {ref}')
-
           if errors:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
 
-          print('OK: Caixa isolado; somente os ícones oficiais X-Burguer são compartilhados.')
+          print('OK: X-Burguer Caixa totalmente isolado do X-Burguer Consumo.')
           PY
