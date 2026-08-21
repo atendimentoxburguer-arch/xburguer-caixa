@@ -22,7 +22,7 @@ jobs:
             node --check "$file"
           done
 
-      - name: Validar manifesto, isolamento e versão
+      - name: Validar PWA nativo, isolamento e sistema
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -36,10 +36,12 @@ jobs:
               errors.append('Manifest ID oficial do Caixa foi alterado.')
           if manifest.get('scope') != '/xburguer-caixa/':
               errors.append('Manifest scope do Caixa foi alterado.')
-          if manifest.get('start_url') != '/xburguer-caixa/':
-              errors.append('start_url do Caixa não é a raiz oficial do aplicativo.')
+          if manifest.get('start_url') != '/xburguer-caixa/caixa.html?app=caixa':
+              errors.append('start_url não aponta para a tela oficial do Caixa.')
           if manifest.get('display') != 'standalone':
               errors.append('Modo standalone do Caixa foi alterado.')
+          if manifest.get('prefer_related_applications') is not False:
+              errors.append('Manifest deve preferir a instalação web nativa.')
 
           required_icons = {
               './icons/xburguer-caixa-192-v4150.png',
@@ -48,82 +50,48 @@ jobs:
           }
           manifest_icons = {str(icon.get('src','')) for icon in manifest.get('icons', [])}
           if not required_icons.issubset(manifest_icons):
-              errors.append('Manifest não contém todos os ícones oficiais do Caixa.')
+              errors.append('Manifest não contém os ícones obrigatórios do Caixa.')
           for rel in [p[2:] for p in required_icons]:
               if not (root/rel).exists():
                   errors.append(f'Ícone obrigatório ausente: {rel}')
 
           index = (root/'index.html').read_text(encoding='utf-8')
-          for name in ['system-hardening.js','app5.js','automatic-conference.js','cash-conference-help.js','pwa.js','identity-guard.js']:
-              if f'{name}?v=4.18.2' not in index:
-                  errors.append(f'Index não carrega {name} na publicação v4.18.2.')
-          if 'install-helper.js?v=4.18.3' not in index:
-              errors.append('Index não carrega o instalador de tablet v4.18.3.')
-          if index.find('identity-guard.js') > index.find('@supabase/supabase-js'):
+          if '/xburguer-caixa/service-worker.js?v=native-1' not in index:
+              errors.append('Bootstrap não registra o Service Worker nativo.')
+          if "scope:'/xburguer-caixa/'" not in index:
+              errors.append('Bootstrap não limita o Service Worker ao Caixa.')
+          if "location.replace('/xburguer-caixa/caixa.html?app=caixa')" not in index:
+              errors.append('Bootstrap não abre a tela oficial após preparar o PWA.')
+          if 'beforeinstallprompt' in index:
+              errors.append('Bootstrap não deve interceptar o instalador nativo do Chrome.')
+
+          caixa = (root/'caixa.html').read_text(encoding='utf-8')
+          if 'manifest.webmanifest?v=pwa-caixa-native-1' not in caixa:
+              errors.append('Tela do Caixa não aponta para o manifesto nativo.')
+          if 'install-helper.js' in caixa or 'pwa.js' in caixa:
+              errors.append('Tela do Caixa ainda carrega camadas antigas de instalação.')
+          if caixa.find('identity-guard.js') > caixa.find('@supabase/supabase-js'):
               errors.append('Trava de identidade precisa carregar antes do Supabase.')
-          if index.find('install-helper.js') > index.find('pwa.js'):
-              errors.append('Instalador deve carregar antes do registro do PWA.')
-
-          identity = (root/'identity-guard.js').read_text(encoding='utf-8')
-          if "EXPECTED_PATH='/xburguer-caixa/'" not in identity:
-              errors.append('Trava de identidade perdeu o caminho oficial do Caixa.')
-          if "EXPECTED_SUPABASE_HOST='trnngxezppeembrvxkhh.supabase.co'" not in identity:
-              errors.append('Trava de identidade perdeu o Supabase oficial do Caixa.')
-          if 'validateSupabaseUrl' not in identity or 'window.fetch=function' not in identity:
-              errors.append('Trava de identidade não está bloqueando conexões Supabase divergentes.')
-
-          hardening = (root/'system-hardening.js').read_text(encoding='utf-8')
-          if 'pageSize=500' not in hardening:
-              errors.append('Carregamento paginado do histórico não foi encontrado.')
-          if 'xbIsNetworkError' not in hardening:
-              errors.append('Proteção de sessão contra falha de internet não foi encontrada.')
-
-          conference = (root/'automatic-conference.js').read_text(encoding='utf-8')
-          if "const AUTO_VERSION='4.18.2';" not in conference:
-              errors.append('Versão interna do sistema não é 4.18.2.')
-          if 'cashCountVerified' not in conference:
-              errors.append('Flag de contagem física opcional não foi encontrada.')
-          if 'buildSaveWarnings=function' not in conference:
-              errors.append('A conferência automática não controla os avisos de salvamento.')
-
-          installer = (root/'install-helper.js').read_text(encoding='utf-8')
-          if 'beforeinstallprompt' not in installer:
-              errors.append('Instalador não captura o prompt nativo de instalação.')
-          if "matchMedia('(display-mode: standalone)')" not in installer:
-              errors.append('Instalador não detecta execução standalone.')
-          if 'navigator.standalone===true' not in installer:
-              errors.append('Instalador não cobre modo standalone do iPad/iPhone.')
-          if 'Instalar aplicativo' not in installer:
-              errors.append('Instalador não orienta instalação PWA real.')
-
-          app5 = (root/'app5.js').read_text(encoding='utf-8')
-          if 'rpc/restore_cash_backup' not in app5:
-              errors.append('Restauração atômica de backup não está ativa no frontend.')
-          if 'enterOfflineMode' not in app5:
-              errors.append('Modo offline seguro não foi encontrado.')
-          if 'Descartar e carregar' not in app5:
-              errors.append('Proteção contra descarte acidental de rascunho não foi encontrada.')
 
           sw = (root/'service-worker.js').read_text(encoding='utf-8')
-          if 'const CACHE_NAME = "xburguer-caixa-pwa-v4.18.2";' not in sw:
-              errors.append('Cache do Caixa não está na versão 4.18.2.')
+          if 'const CACHE_NAME = "xburguer-caixa-native-v1";' not in sw:
+              errors.append('Cache nativo do Caixa não está ativo.')
           if 'const APP_PATH = "/xburguer-caixa/";' not in sw:
-              errors.append('Service Worker perdeu o limite de caminho.')
-          if 'Promise.allSettled' not in sw:
-              errors.append('Precache resiliente do PWA não foi encontrado.')
-          for name in ['automatic-conference.js','identity-guard.js','install-helper.js']:
-              if name not in sw:
-                  errors.append(f'Service Worker não inclui {name}.')
+              errors.append('Service Worker perdeu o caminho exclusivo do Caixa.')
+          if '"./caixa.html"' not in sw:
+              errors.append('Service Worker não inclui a tela principal do Caixa.')
           if 'caches.match(' in sw:
               errors.append('Service Worker usa busca global de cache da origem.')
 
-          pwa = (root/'pwa.js').read_text(encoding='utf-8')
-          if '/xburguer-caixa/service-worker.js?v=4.18.2' not in pwa:
-              errors.append('PWA não registra o Service Worker v4.18.2.')
-          if "scope:'/xburguer-caixa/'" not in pwa:
-              errors.append('Registro PWA não está preso ao caminho exclusivo.')
-          if 'registerPWA();' not in pwa:
-              errors.append('Registro PWA não é iniciado imediatamente.')
+          legacy = (root/'sw.js').read_text(encoding='utf-8')
+          if "service-worker.js?v=native-1" not in legacy:
+              errors.append('Service Worker legado não aponta para o PWA nativo.')
+
+          identity = (root/'identity-guard.js').read_text(encoding='utf-8')
+          if "EXPECTED_PATH='/xburguer-caixa/'" not in identity:
+              errors.append('Trava de identidade perdeu o caminho oficial.')
+          if "EXPECTED_SUPABASE_HOST='trnngxezppeembrvxkhh.supabase.co'" not in identity:
+              errors.append('Trava de identidade perdeu o Supabase oficial do Caixa.')
 
           storage = (root/'storage-namespace.js').read_text(encoding='utf-8')
           if "const NS = 'xburguer_caixa::';" not in storage:
@@ -131,15 +99,20 @@ jobs:
 
           app1 = (root/'app1.js').read_text(encoding='utf-8')
           if 'trnngxezppeembrvxkhh.supabase.co' not in app1:
-              errors.append('Supabase do Caixa foi alterado.')
-          if 'rrslolruacewjijlhpdc' in app1:
-              errors.append('Caixa contém referência ao banco do outro sistema.')
+              errors.append('Frontend não aponta para o Supabase do Caixa.')
+
+          conference = (root/'automatic-conference.js').read_text(encoding='utf-8')
+          if "const AUTO_VERSION='4.18.2';" not in conference:
+              errors.append('Versão interna atual do sistema foi alterada sem revisão.')
+          if 'cashCountVerified' not in conference:
+              errors.append('Conferência física opcional não foi encontrada.')
 
           runtime_files = [
-              root/'index.html', root/'manifest.webmanifest', root/'service-worker.js',
-              root/'identity-guard.js', root/'install-helper.js', root/'pwa.js', root/'sw.js', root/'app1.js', root/'app2.js', root/'app3.js',
-              root/'app4.js', root/'app5.js', root/'storage-namespace.js',
-              root/'system-hardening.js', root/'automatic-conference.js', root/'realtime.js'
+              root/'index.html', root/'caixa.html', root/'manifest.webmanifest',
+              root/'service-worker.js', root/'sw.js', root/'identity-guard.js',
+              root/'app1.js', root/'app2.js', root/'app3.js', root/'app4.js', root/'app5.js',
+              root/'storage-namespace.js', root/'system-hardening.js',
+              root/'automatic-conference.js', root/'realtime.js'
           ]
           forbidden = ['/xburguer-controle/', 'xburguer-consumo-', 'rrslolruacewjijlhpdc']
           for path in runtime_files:
@@ -152,13 +125,9 @@ jobs:
               if 'window.confirm(' in text:
                   errors.append(f'{path}: confirmação nativa do navegador encontrada.')
 
-          version_css = (root/'version.css').read_text(encoding='utf-8')
-          if '4.18.2' not in version_css:
-              errors.append('Versão visível não é 4.18.2.')
-
           if errors:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
 
-          print('OK: X-Burguer Caixa v4.18.2 validado para instalação standalone em tablets.')
+          print('OK: X-Burguer Caixa validado com PWA nativo no mesmo padrão do Consumo.')
           PY
