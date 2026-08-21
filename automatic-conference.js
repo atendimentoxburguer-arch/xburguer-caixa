@@ -23,7 +23,6 @@
     return record;
   }
 
-  /* Preserva no frontend o indicador salvo no banco. */
   if(typeof cloudToRecord==='function'){
     const originalCloudToRecord=cloudToRecord;
     cloudToRecord=function(row){
@@ -32,8 +31,6 @@
     };
   }
 
-  /* Backups antigos não tinham a flag; nesses casos, uma contagem diferente de zero
-     é tratada como conferência física existente. */
   if(typeof normalize==='function'){
     const originalNormalize=normalize;
     normalize=function(record){
@@ -46,7 +43,6 @@
     };
   }
 
-  /* Novos fechamentos só marcam conferência física quando o campo foi realmente preenchido. */
   if(typeof currentRecord==='function'){
     const originalCurrentRecord=currentRecord;
     currentRecord=function(dateOverride=null){
@@ -55,7 +51,6 @@
     };
   }
 
-  /* Mantém possível registrar uma contagem real de R$ 0,00. */
   if(typeof populateForm==='function'){
     const originalPopulateForm=populateForm;
     populateForm=function(record,options={}){
@@ -71,7 +66,6 @@
     };
   }
 
-  /* A conferência financeira é automática. A ausência de contagem física não é erro. */
   buildSaveWarnings=function(record){
     const warnings=[];
     if(record.date>isoToday())warnings.push('• A data selecionada está no futuro.');
@@ -84,8 +78,6 @@
     return warnings;
   };
 
-  /* Nos relatórios, não mostra R$ 0,00 como se a gaveta tivesse sido conferida quando
-     a contagem física foi simplesmente deixada em branco. */
   if(typeof refreshDailyReport==='function'){
     const originalRefreshDailyReport=refreshDailyReport;
     refreshDailyReport=function(){
@@ -112,6 +104,24 @@
     };
   }
 
+  if(typeof refreshHistory==='function'){
+    const originalRefreshHistory=refreshHistory;
+    refreshHistory=function(){
+      const result=originalRefreshHistory.apply(this,arguments);
+      const ym=document.getElementById('historyMonth')?.value||'';
+      const query=(document.getElementById('historySearch')?.value||'').trim().toLowerCase();
+      let records=load().map(normalize).slice().reverse();
+      if(ym)records=records.filter(r=>r.date.startsWith(ym));
+      if(query)records=records.filter(r=>(r.resp||'').toLowerCase().includes(query)||(r.obs||'').toLowerCase().includes(query));
+      const rows=[...document.querySelectorAll('#historyTable tr')];
+      records.forEach((record,index)=>{
+        const cell=rows[index]?.cells?.[6];
+        if(cell&&!record.cashCountVerified){cell.textContent='—';cell.classList.remove('positive','negative');}
+      });
+      return result;
+    };
+  }
+
   if(typeof refreshMonthly==='function'){
     const originalRefreshMonthly=refreshMonthly;
     refreshMonthly=function(){
@@ -122,11 +132,17 @@
           first.textContent='Diferenças físicas informadas';
         }
       });
+      const ym=document.getElementById('monthPicker')?.value||monthNow();
+      const month=monthRecords(ym).map(normalize).sort((a,b)=>a.date.localeCompare(b.date));
+      const rows=[...document.querySelectorAll('#monthTable tr')];
+      month.forEach((record,index)=>{
+        const cell=rows[index]?.cells?.[11];
+        if(cell&&!record.cashCountVerified){cell.textContent='—';cell.classList.remove('positive','negative');}
+      });
       return result;
     };
   }
 
-  /* Mantém a versão exibida e os backups alinhados com esta atualização. */
   window.XB_APP_VERSION=AUTO_VERSION;
   if(typeof exportJSON==='function'){
     exportJSON=function(){
@@ -153,7 +169,6 @@
   }
   applyVersion();
 
-  /* Reprocessa qualquer dado que já tenha chegado da nuvem antes desta camada carregar. */
   try{
     if(Array.isArray(cloudData)&&cloudData.length)cloudData=cloudData.map(normalize);
   }catch{}
