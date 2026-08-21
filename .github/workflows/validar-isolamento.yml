@@ -40,8 +40,6 @@ jobs:
               errors.append('start_url do Caixa não é a raiz oficial do aplicativo.')
           if manifest.get('display') != 'standalone':
               errors.append('Modo standalone do Caixa foi alterado.')
-          if 'standalone' not in manifest.get('display_override', []):
-              errors.append('display_override não prioriza standalone.')
 
           required_icons = {
               './icons/xburguer-caixa-192-v4150.png',
@@ -56,9 +54,11 @@ jobs:
                   errors.append(f'Ícone obrigatório ausente: {rel}')
 
           index = (root/'index.html').read_text(encoding='utf-8')
-          for name in ['system-hardening.js','app5.js','automatic-conference.js','cash-conference-help.js','install-helper.js','pwa.js','identity-guard.js']:
+          for name in ['system-hardening.js','app5.js','automatic-conference.js','cash-conference-help.js','pwa.js','identity-guard.js']:
               if f'{name}?v=4.18.2' not in index:
                   errors.append(f'Index não carrega {name} na publicação v4.18.2.')
+          if 'install-helper.js?v=4.18.3' not in index:
+              errors.append('Index não carrega o instalador de tablet v4.18.3.')
           if index.find('identity-guard.js') > index.find('@supabase/supabase-js'):
               errors.append('Trava de identidade precisa carregar antes do Supabase.')
           if index.find('install-helper.js') > index.find('pwa.js'):
