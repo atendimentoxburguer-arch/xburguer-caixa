@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — registro PWA isolado v4.18.0 */
+/* X-Burguer Caixa — registro PWA isolado v4.18.1 */
 (function(){
   if(!('serviceWorker' in navigator))return;
 
@@ -24,7 +24,7 @@
       }
 
       const reg=await navigator.serviceWorker.register(
-        '/xburguer-caixa/service-worker.js?v=4.18.0',
+        '/xburguer-caixa/service-worker.js?v=4.18.1',
         {
           scope:'/xburguer-caixa/',
           updateViaCache:'none'
