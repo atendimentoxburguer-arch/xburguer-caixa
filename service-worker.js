@@ -1,4 +1,4 @@
-const CACHE_NAME = "xburguer-caixa-pwa-v4.18.2";
+const CACHE_NAME = "xburguer-caixa-pwa-v4.18.3";
 const APP_PATH = "/xburguer-caixa/";
 
 const PRECACHE = [
@@ -50,13 +50,11 @@ self.addEventListener("activate",event=>{
 self.addEventListener("fetch",event=>{
   const request=event.request;
   if(request.method!=="GET")return;
-
   const url=new URL(request.url);
   if(url.origin!==self.location.origin||!url.pathname.startsWith(APP_PATH))return;
 
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE_NAME);
-
     try{
       const response=await fetch(new Request(request,{cache:"no-store"}));
       if(response&&response.ok)cache.put(request,response.clone()).catch(()=>{});
@@ -64,12 +62,10 @@ self.addEventListener("fetch",event=>{
     }catch(_){
       const cached=await cache.match(request,{ignoreSearch:true});
       if(cached)return cached;
-
       if(request.mode==="navigate"){
         const fallback=await cache.match("./index.html",{ignoreSearch:true});
         if(fallback)return fallback;
       }
-
       return Response.error();
     }
   })());
