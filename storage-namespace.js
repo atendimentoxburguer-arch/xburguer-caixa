@@ -1,70 +1,68 @@
-/* X-Burguer Caixa — isolamento de localStorage/sessionStorage
-   Mantém compatibilidade com as chaves antigas usadas pelo app,
-   mas grava fisicamente tudo com prefixo exclusivo do Caixa. */
+/* X-Burguer Caixa — isolamento total de localStorage/sessionStorage.
+   Toda chave usada pelo Caixa passa a ser armazenada em namespace próprio. */
 (function () {
   'use strict';
 
+  const NS = 'xburguer_caixa::';
   const proto = Storage.prototype;
   const originalGet = proto.getItem;
   const originalSet = proto.setItem;
   const originalRemove = proto.removeItem;
   const originalKey = proto.key;
 
-  const exact = new Map([
-    ['xburguer_supabase_session_v1', 'xburguer_caixa_supabase_session_v1'],
-    ['xburguer_draft_v2', 'xburguer_caixa_draft_v2'],
-    ['xburguer_last_backup', 'xburguer_caixa_last_backup']
+  const legacyExact = new Map([
+    ['xburguer_supabase_session_v1', ['xburguer_supabase_session_v1', 'xburguer_caixa_supabase_session_v1']],
+    ['xburguer_draft_v2', ['xburguer_draft_v2', 'xburguer_caixa_draft_v2']],
+    ['xburguer_last_backup', ['xburguer_last_backup', 'xburguer_caixa_last_backup']]
   ]);
 
-  const oldDraftPrefix = 'xburguer_draft_v3:';
-  const newDraftPrefix = 'xburguer_caixa_draft_v3:';
+  const legacyDraftPrefixes = ['xburguer_draft_v3:', 'xburguer_caixa_draft_v3:'];
 
   function physicalKey(key) {
     key = String(key);
-    if (exact.has(key)) return exact.get(key);
-    if (key.startsWith(oldDraftPrefix)) {
-      return newDraftPrefix + key.slice(oldDraftPrefix.length);
-    }
-    return key;
+    if (key.startsWith(NS)) return key;
+    return NS + key;
   }
 
   function logicalKey(key) {
     if (key == null) return key;
     key = String(key);
-    for (const [logical, physical] of exact.entries()) {
-      if (key === physical) return logical;
+    return key.startsWith(NS) ? key.slice(NS.length) : key;
+  }
+
+  function copyIfNeeded(store, sourceKey, targetKey) {
+    const source = originalGet.call(store, sourceKey);
+    if (source === null) return;
+    if (originalGet.call(store, targetKey) === null) {
+      originalSet.call(store, targetKey, source);
     }
-    if (key.startsWith(newDraftPrefix)) {
-      return oldDraftPrefix + key.slice(newDraftPrefix.length);
-    }
-    return key;
+    originalRemove.call(store, sourceKey);
   }
 
   function migrateStore(store) {
     try {
-      for (const [logical, physical] of exact.entries()) {
-        const oldValue = originalGet.call(store, logical);
-        const newValue = originalGet.call(store, physical);
-        if (oldValue !== null && newValue === null) {
-          originalSet.call(store, physical, oldValue);
+      for (const [logical, candidates] of legacyExact.entries()) {
+        const target = physicalKey(logical);
+        for (const candidate of candidates) {
+          copyIfNeeded(store, candidate, target);
         }
-        if (oldValue !== null) originalRemove.call(store, logical);
       }
 
-      const draftKeys = [];
+      const legacyDraftKeys = [];
       for (let i = 0; i < store.length; i++) {
         const key = originalKey.call(store, i);
-        if (key && key.startsWith(oldDraftPrefix)) draftKeys.push(key);
+        if (!key || key.startsWith(NS)) continue;
+        if (legacyDraftPrefixes.some(prefix => key.startsWith(prefix))) {
+          legacyDraftKeys.push(key);
+        }
       }
 
-      for (const oldKey of draftKeys) {
-        const physical = physicalKey(oldKey);
-        const oldValue = originalGet.call(store, oldKey);
-        const newValue = originalGet.call(store, physical);
-        if (oldValue !== null && newValue === null) {
-          originalSet.call(store, physical, oldValue);
+      for (const oldKey of legacyDraftKeys) {
+        let logical = oldKey;
+        if (oldKey.startsWith('xburguer_caixa_draft_v3:')) {
+          logical = 'xburguer_draft_v3:' + oldKey.slice('xburguer_caixa_draft_v3:'.length);
         }
-        originalRemove.call(store, oldKey);
+        copyIfNeeded(store, oldKey, physicalKey(logical));
       }
     } catch (error) {
       console.warn('Caixa: não foi possível migrar o armazenamento local antigo.', error);
