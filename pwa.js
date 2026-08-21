@@ -1,8 +1,8 @@
-/* X-Burguer Caixa — registro PWA isolado v4.18.3 */
+/* X-Burguer Caixa — registro PWA isolado v4.18.2 + correção tablet */
 (function(){
   'use strict';
-  const VERSION='4.18.3';
-  const RELOAD_KEY='xb_pwa_controller_reload_'+VERSION;
+  const VERSION='4.18.2';
+  const RELOAD_KEY='xb_pwa_controller_reload_tabletfix';
   if(!('serviceWorker' in navigator)){
     document.documentElement.dataset.pwaReady='unsupported';
     return;
@@ -30,10 +30,7 @@
       document.documentElement.dataset.pwaReady='true';
       document.documentElement.dataset.swControlled=navigator.serviceWorker.controller?'true':'false';
 
-      /* Alguns Chromes Android só recalculam a instalabilidade depois que a página
-         passa a ser efetivamente controlada pelo Service Worker. Fazemos no máximo
-         uma recarga automática por versão. */
-      if(!navigator.serviceWorker.controller && !sessionStorage.getItem(RELOAD_KEY)){
+      if(!navigator.serviceWorker.controller&&!sessionStorage.getItem(RELOAD_KEY)){
         sessionStorage.setItem(RELOAD_KEY,'1');
         let reloaded=false;
         const reloadOnce=()=>{
@@ -42,9 +39,7 @@
           location.replace('/xburguer-caixa/');
         };
         navigator.serviceWorker.addEventListener('controllerchange',reloadOnce,{once:true});
-        setTimeout(()=>{
-          if(navigator.serviceWorker.controller)reloadOnce();
-        },1200);
+        setTimeout(()=>{if(navigator.serviceWorker.controller)reloadOnce();},1200);
       }
 
       window.XBPWAState=Object.freeze({
