@@ -5,7 +5,7 @@
   "description": "Aplicativo interno de controle e fechamento de caixa da X-Burguer.",
   "lang": "pt-BR",
   "dir": "ltr",
-  "start_url": "/xburguer-caixa/",
+  "start_url": "/xburguer-caixa/caixa.html?app=caixa",
   "scope": "/xburguer-caixa/",
   "display": "standalone",
   "background_color": "#F3F8FA",
@@ -13,14 +13,13 @@
   "orientation": "any",
   "categories": ["business", "productivity"],
   "prefer_related_applications": false,
-  "related_applications": [
-    {
-      "platform": "webapp",
-      "url": "/xburguer-caixa/manifest.webmanifest",
-      "id": "/xburguer-caixa/caixa-oficial"
-    }
-  ],
   "icons": [
+    {
+      "src": "./icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "./icons/xburguer-caixa-192-v4150.png",
       "sizes": "192x192",
@@ -44,7 +43,7 @@
     {
       "name": "Abrir Caixa",
       "short_name": "Caixa",
-      "url": "/xburguer-caixa/",
+      "url": "./caixa.html?app=caixa",
       "icons": [
         {
           "src": "./icons/xburguer-caixa-192-v4150.png",
