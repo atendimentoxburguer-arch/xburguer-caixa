@@ -1,4 +1,4 @@
-const CACHE_NAME = "xburguer-caixa-pwa-v4.16.3";
+const CACHE_NAME = "xburguer-caixa-pwa-v4.17.0";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
   "./",
@@ -46,7 +46,6 @@ self.addEventListener("fetch", event => {
       }
       return response;
     } catch (_) {
-      // Procura SOMENTE no cache exclusivo do Caixa.
       const cached = await cache.match(request, { ignoreSearch: true });
       if (cached) return cached;
 
