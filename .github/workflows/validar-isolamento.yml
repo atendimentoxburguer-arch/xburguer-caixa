@@ -1,4 +1,4 @@
-name: Validar isolamento Caixa
+name: Validar X-Burguer Caixa
 
 on:
   push:
@@ -10,12 +10,19 @@ permissions:
   contents: read
 
 jobs:
-  isolamento:
+  qualidade:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Conferir isolamento total do X-Burguer Caixa
+      - name: Validar sintaxe JavaScript
+        run: |
+          set -e
+          for file in *.js; do
+            node --check "$file"
+          done
+
+      - name: Validar manifesto, isolamento e versão
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -34,33 +41,63 @@ jobs:
           if manifest.get('display') != 'standalone':
               errors.append('Modo standalone do Caixa foi alterado.')
 
-          sw_path = root/'service-worker.js'
-          if not sw_path.exists():
-              errors.append('Service Worker principal do Caixa não existe.')
-          else:
-              sw = sw_path.read_text(encoding='utf-8')
-              if 'const APP_PATH = "/xburguer-caixa/";' not in sw:
-                  errors.append('Service Worker do Caixa perdeu o limite de caminho.')
-              if 'const CACHE_NAME = "xburguer-caixa-pwa-v4.17.0";' not in sw:
-                  errors.append('Cache do Caixa não está na versão oficial esperada.')
-              if 'caches.match(' in sw:
-                  errors.append('Service Worker do Caixa usa busca global de cache da origem.')
-              if 'cache.match(' not in sw:
-                  errors.append('Service Worker do Caixa não consulta o próprio cache isolado.')
-
-          pwa = (root/'pwa.js').read_text(encoding='utf-8')
-          if '/xburguer-caixa/service-worker.js' not in pwa or "scope:'/xburguer-caixa/'" not in pwa:
-              errors.append('Registro PWA do Caixa não está preso ao caminho exclusivo.')
-          if 'getRegistrations()' not in pwa or 'old.scope!==expectedScope' not in pwa:
-              errors.append('PWA do Caixa não limpa workers antigos do próprio escopo.')
+          required_icons = {
+              './icons/xburguer-caixa-192-v4150.png',
+              './icons/xburguer-caixa-512-v4150.png',
+              './icons/xburguer-caixa-maskable-512-v4150.png'
+          }
+          manifest_icons = {str(icon.get('src','')) for icon in manifest.get('icons', [])}
+          if not required_icons.issubset(manifest_icons):
+              errors.append('Manifest não contém todos os ícones oficiais do Caixa.')
+          for rel in [p[2:] for p in required_icons]:
+              if not (root/rel).exists():
+                  errors.append(f'Ícone obrigatório ausente: {rel}')
 
           index = (root/'index.html').read_text(encoding='utf-8')
-          if 'pwa.js?v=4.17.0' not in index:
-              errors.append('Index do Caixa não carrega o registrador PWA oficial v4.17.0.')
+          if 'system-hardening.js?v=4.18.0' not in index:
+              errors.append('Index não carrega a camada de estabilidade v4.18.0.')
+          if 'app5.js?v=4.18.0' not in index:
+              errors.append('Index não carrega a lógica final v4.18.0.')
+          if 'cash-conference-help.js?v=4.18.0' not in index:
+              errors.append('Index não carrega a conferência v4.18.0.')
+          if 'pwa.js?v=4.18.0' not in index:
+              errors.append('Index não carrega o registrador PWA v4.18.0.')
+
+          hardening = (root/'system-hardening.js').read_text(encoding='utf-8')
+          if "const XB_APP_VERSION='4.18.0';" not in hardening:
+              errors.append('Versão interna do sistema não é 4.18.0.')
+          if "Number(rec.cash||0)-Number(rec.cashOut||0)" not in hardening:
+              errors.append('Regra oficial da conferência em espécie não foi encontrada.')
+          if 'pageSize=500' not in hardening:
+              errors.append('Carregamento paginado do histórico não foi encontrado.')
+
+          app5 = (root/'app5.js').read_text(encoding='utf-8')
+          if 'rpc/restore_cash_backup' not in app5:
+              errors.append('Restauração atômica de backup não está ativa no frontend.')
+          if 'enterOfflineMode' not in app5:
+              errors.append('Modo offline seguro não foi encontrado.')
+          if 'Descartar e carregar' not in app5:
+              errors.append('Proteção contra descarte acidental de rascunho não foi encontrada.')
+
+          sw = (root/'service-worker.js').read_text(encoding='utf-8')
+          if 'const CACHE_NAME = "xburguer-caixa-pwa-v4.18.0";' not in sw:
+              errors.append('Cache do Caixa não está na versão 4.18.0.')
+          if 'const APP_PATH = "/xburguer-caixa/";' not in sw:
+              errors.append('Service Worker perdeu o limite de caminho.')
+          if 'Promise.allSettled' not in sw:
+              errors.append('Precache resiliente do PWA não foi encontrado.')
+          if 'caches.match(' in sw:
+              errors.append('Service Worker usa busca global de cache da origem.')
+
+          pwa = (root/'pwa.js').read_text(encoding='utf-8')
+          if '/xburguer-caixa/service-worker.js?v=4.18.0' not in pwa:
+              errors.append('PWA não registra o Service Worker v4.18.0.')
+          if "scope:'/xburguer-caixa/'" not in pwa:
+              errors.append('Registro PWA não está preso ao caminho exclusivo.')
 
           storage = (root/'storage-namespace.js').read_text(encoding='utf-8')
           if "const NS = 'xburguer_caixa::';" not in storage:
-              errors.append('Storage do Caixa não usa namespace total exclusivo.')
+              errors.append('Storage do Caixa não usa namespace exclusivo.')
 
           app1 = (root/'app1.js').read_text(encoding='utf-8')
           if 'trnngxezppeembrvxkhh.supabase.co' not in app1:
@@ -68,16 +105,11 @@ jobs:
           if 'rrslolruacewjijlhpdc' in app1:
               errors.append('Caixa contém referência ao banco do outro sistema.')
 
-          legacy = root/'sw.js'
-          if legacy.exists():
-              text = legacy.read_text(encoding='utf-8').strip()
-              if "importScripts('./service-worker.js?v=4.17.0');" not in text:
-                  errors.append('sw.js legado não aponta exclusivamente para o worker oficial do Caixa.')
-
           runtime_files = [
               root/'index.html', root/'manifest.webmanifest', root/'service-worker.js',
               root/'pwa.js', root/'sw.js', root/'app1.js', root/'app2.js', root/'app3.js',
-              root/'app4.js', root/'app5.js', root/'storage-namespace.js'
+              root/'app4.js', root/'app5.js', root/'storage-namespace.js',
+              root/'system-hardening.js', root/'realtime.js'
           ]
           forbidden = ['/xburguer-controle/', 'xburguer-consumo-', 'rrslolruacewjijlhpdc']
           for path in runtime_files:
@@ -87,10 +119,16 @@ jobs:
               for token in forbidden:
                   if token in text:
                       errors.append(f'{path}: referência proibida do outro sistema: {token}')
+              if 'window.confirm(' in text:
+                  errors.append(f'{path}: confirmação nativa do navegador encontrada.')
+
+          version_css = (root/'version.css').read_text(encoding='utf-8')
+          if '4.18.0' not in version_css:
+              errors.append('Versão visível não é 4.18.0.')
 
           if errors:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
 
-          print('OK: X-Burguer Caixa v4.17.0 isolado em identidade, PWA, cache, storage e banco.')
+          print('OK: X-Burguer Caixa v4.18.0 validado em sintaxe, PWA, isolamento, backup e estabilidade.')
           PY
