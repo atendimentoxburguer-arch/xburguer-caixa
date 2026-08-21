@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — conferência simplificada do dinheiro em espécie v4.17.3 */
+/* X-Burguer Caixa — ajuda visual da conferência v4.18.0 */
 (function(){
   const brl=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
   const num=id=>Number(document.getElementById(id)?.value||0);
@@ -35,36 +35,7 @@
     return item;
   }
 
-  function expectedCashNow(){
-    // Regra simplificada solicitada para a operação da loja:
-    // somente vendas em dinheiro menos retiradas para despesas.
-    // O saldo inicial NÃO entra na conferência física.
-    return num('cash')-num('cashOut');
-  }
-
-  function patchRecord(rec){
-    if(!rec)return rec;
-    const expected=Number(rec.cash||0)-Number(rec.cashOut||0);
-    rec.expectedCash=expected;
-    rec.cashDifference=Number(rec.countedCash||0)-expected;
-    return rec;
-  }
-
-  // Garante que rascunhos e novos salvamentos usem a nova regra.
-  const originalCurrentRecord=window.currentRecord;
-  if(typeof originalCurrentRecord==='function'){
-    window.currentRecord=function(dateOverride=null){
-      return patchRecord(originalCurrentRecord(dateOverride));
-    };
-  }
-
-  // Ao carregar registros antigos, apresenta a conferência segundo a regra atual.
-  const originalNormalize=window.normalize;
-  if(typeof originalNormalize==='function'){
-    window.normalize=function(record){
-      return patchRecord(originalNormalize(record));
-    };
-  }
+  function expectedCashNow(){return num('cash')-num('cashOut');}
 
   function update(){
     const cashItem=getItem('cashDiff');
@@ -74,13 +45,12 @@
     if(!cashItem||!diffEl||!expectedEl||!statusEl)return;
 
     const expected=expectedCashNow();
-    setText(expectedEl,'Esperado na gaveta: '+brl.format(expected)+'  •  V. Dinheiro − retiradas');
-
+    setText(expectedEl,'Esperado na gaveta: '+brl.format(expected)+' • V. Dinheiro − retiradas');
     cashItem.classList.remove('is-ok','is-short','is-over');
 
     if(!hasValue('countedCash')){
       setText(diffEl,'—');
-      diffEl.className='';
+      diffEl.classList.remove('positive','negative');
       setText(statusEl,'Aguardando contagem da gaveta');
       return;
     }
@@ -101,17 +71,6 @@
     }
   }
 
-  // O cálculo principal continua cuidando de vendas, despesas e pagamentos.
-  // Depois dele, corrigimos apenas a conferência física para a nova regra.
-  const originalCalc=window.calc;
-  if(typeof originalCalc==='function'){
-    window.calc=function(){
-      const result=originalCalc.apply(this,arguments);
-      update();
-      return result;
-    };
-  }
-
   function setup(){
     const grid=document.querySelector('.cash-conference-grid');
     if(!grid)return;
@@ -122,19 +81,19 @@
     setLabel('countedCash','Dinheiro contado na gaveta');
     setLabel('paymentTotal','Pagamentos informados');
     setLabel('paymentDiff','Diferença pagamentos × vendas');
-    setLabel('cashDiff','Diferença do dinheiro em espécie');
+    setLabel('cashDiff','Diferença do dinheiro físico');
     setLabel('dayBalance','Resultado do dia');
 
-    addHelp('countedCash','Digite somente as notas e moedas encontradas fisicamente na gaveta ao final do dia.');
-    addHelp('paymentTotal','Soma das formas de pagamento informadas: dinheiro, cartões e Pix/apps.');
+    addHelp('countedCash','Informe somente as notas e moedas realmente encontradas na gaveta.');
+    addHelp('paymentTotal','Soma de dinheiro, cartões e Pix/apps informados no resumo financeiro.');
     addHelp('paymentDiff','R$ 0,00 significa que as formas de pagamento batem com o total de vendas.');
-    const cashItem=addHelp('cashDiff','Compara o dinheiro contado com V. Dinheiro (Caixa) − dinheiro retirado para despesas. O Saldo Inicial não entra nesta conferência.');
-    addHelp('dayBalance','Resultado do dia = total de vendas − despesas registradas.');
+    const cashItem=addHelp('cashDiff','Compara o dinheiro contado com V. Dinheiro (Caixa) menos as retiradas para despesas. O Saldo Inicial não entra nesta conferência.');
+    addHelp('dayBalance','Resultado = total de vendas − despesas registradas no dia.');
 
     if(cashItem&&!document.getElementById('cashExpectedHelp')){
       const expected=document.createElement('small');
       expected.id='cashExpectedHelp';
-      expected.className='cash-conference-help cash-conference-formula';
+      expected.className='cash-conference-help cash-expected-help';
       cashItem.appendChild(expected);
     }
     if(cashItem&&!document.getElementById('cashConferenceStatus')){
@@ -144,7 +103,6 @@
       status.textContent='Aguardando contagem da gaveta';
       cashItem.appendChild(status);
     }
-
     update();
   }
 
@@ -152,19 +110,15 @@
     setup();
     ['cash','cashOut','countedCash'].forEach(id=>{
       const el=document.getElementById(id);
-      if(el){
-        el.addEventListener('input',()=>setTimeout(update,0));
-        el.addEventListener('change',()=>setTimeout(update,0));
-      }
+      if(el){el.addEventListener('input',()=>setTimeout(update,0));el.addEventListener('change',()=>setTimeout(update,0));}
     });
-
     document.addEventListener('input',e=>{
       const id=e.target?.id||'';
       if(['cash__brl','cashOut__brl','countedCash__brl'].includes(id))setTimeout(update,0);
     });
-
     const diff=document.getElementById('cashDiff');
     if(diff)new MutationObserver(()=>setTimeout(update,0)).observe(diff,{childList:true,characterData:true,subtree:true});
+    window.addEventListener('pageshow',()=>setTimeout(update,0));
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
