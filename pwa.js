@@ -21,7 +21,7 @@
       }
 
       const reg=await navigator.serviceWorker.register(
-        '/xburguer-caixa/service-worker.js?v='+VERSION,
+        '/xburguer-caixa/service-worker.js?v=4.18.2',
         {scope:'/xburguer-caixa/',updateViaCache:'none'}
       );
       await reg.update().catch(()=>{});
