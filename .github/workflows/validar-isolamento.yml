@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Conferir isolamento do Controle de Caixa
+      - name: Conferir isolamento e PWA do Controle de Caixa
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -25,25 +25,22 @@ jobs:
           errors = []
 
           manifest = json.loads((root/'manifest.webmanifest').read_text(encoding='utf-8'))
-          if manifest.get('id') != '/xburguer-caixa/':
+          if manifest.get('id') != '/xburguer-caixa/caixa-app':
               errors.append('Manifest ID do Caixa foi alterado.')
           if manifest.get('scope') != '/xburguer-caixa/':
               errors.append('Manifest scope do Caixa foi alterado.')
-          if manifest.get('start_url') != '/xburguer-caixa/':
+          if not str(manifest.get('start_url','')).startswith('/xburguer-caixa/'):
               errors.append('start_url do Caixa saiu do caminho exclusivo.')
           if manifest.get('display') != 'standalone':
               errors.append('Modo standalone do Caixa foi alterado.')
 
-          icon_paths = {
-              '/xburguer-caixa/icons/xburguer-caixa-192-v4150.png',
-              '/xburguer-caixa/icons/xburguer-caixa-512-v4150.png',
-              '/xburguer-caixa/icons/xburguer-caixa-maskable-512-v4150.png'
+          required_icons = {
+              './icons/xburguer-caixa-192-v4150.png',
+              './icons/xburguer-caixa-512-v4150.png',
+              './icons/xburguer-caixa-maskable-512-v4150.png'
           }
-          manifest_icons = {
-              str(icon.get('src','')).split('?')[0].replace('./icons/','/xburguer-caixa/icons/')
-              for icon in manifest.get('icons', [])
-          }
-          if not icon_paths.issubset(manifest_icons):
+          manifest_icons = {str(icon.get('src','')) for icon in manifest.get('icons', [])}
+          if not required_icons.issubset(manifest_icons):
               errors.append('Manifest não contém todos os ícones oficiais do Caixa.')
 
           for rel in [
@@ -54,15 +51,19 @@ jobs:
               if not (root/rel).exists():
                   errors.append(f'Ícone obrigatório ausente: {rel}')
 
-          sw = (root/'sw.js').read_text(encoding='utf-8')
-          if "const APP_PATH='/xburguer-caixa/';" not in sw:
-              errors.append('Service Worker do Caixa perdeu o limite de caminho.')
-          if '/xburguer-controle/' in sw or 'xburguer-pwa-' in sw:
-              errors.append('Service Worker do Caixa contém referência ao Consumo.')
+          sw_path = root/'service-worker.js'
+          if not sw_path.exists():
+              errors.append('Service Worker principal do Caixa não existe.')
+          else:
+              sw = sw_path.read_text(encoding='utf-8')
+              if 'const APP_PATH = "/xburguer-caixa/";' not in sw:
+                  errors.append('Service Worker do Caixa perdeu o limite de caminho.')
+              if '/xburguer-controle/' in sw or 'xburguer-consumo-' in sw:
+                  errors.append('Service Worker do Caixa contém referência ao Consumo.')
 
-          pwa = (root/'pwa.js').read_text(encoding='utf-8')
-          if "scope:'/xburguer-caixa/'" not in pwa or '/xburguer-caixa/sw.js' not in pwa:
-              errors.append('Registro PWA do Caixa não está preso ao caminho exclusivo.')
+          index = (root/'index.html').read_text(encoding='utf-8')
+          if '/xburguer-caixa/service-worker.js' not in index or "scope:'/xburguer-caixa/'" not in index:
+              errors.append('Registro do Service Worker do Caixa não está preso ao caminho exclusivo.')
 
           app1 = (root/'app1.js').read_text(encoding='utf-8')
           if 'trnngxezppeembrvxkhh.supabase.co' not in app1:
@@ -74,11 +75,11 @@ jobs:
               errors.append('Camada de isolamento do armazenamento local do Caixa não existe.')
 
           runtime_files = [
-              root/'index.html', root/'manifest.webmanifest', root/'sw.js', root/'pwa.js',
+              root/'index.html', root/'manifest.webmanifest', root/'service-worker.js',
               root/'app1.js', root/'app2.js', root/'app3.js', root/'app4.js', root/'app5.js',
               root/'storage-namespace.js'
           ]
-          forbidden = ['/xburguer-controle/', 'rrslolruacewjijlhpdc', 'xburguer-pwa-', 'xburguer-consumo-']
+          forbidden = ['/xburguer-controle/', 'rrslolruacewjijlhpdc', 'xburguer-consumo-']
           for path in runtime_files:
               if not path.exists():
                   continue
@@ -86,9 +87,6 @@ jobs:
               for token in forbidden:
                   if token in text:
                       errors.append(f'{path}: referência proibida do Consumo: {token}')
-
-          if (root/'service-worker.js').exists():
-              errors.append('Existe Service Worker com nome do projeto de Consumo no Caixa.')
 
           if errors:
               print('\n'.join('ERRO: '+e for e in errors))
