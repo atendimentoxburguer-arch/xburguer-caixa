@@ -64,6 +64,18 @@ jobs:
               errors.append('Index não carrega a ajuda da conferência v4.18.1.')
           if 'pwa.js?v=4.18.1' not in index:
               errors.append('Index não carrega o registrador PWA v4.18.1.')
+          if 'identity-guard.js?v=4.18.1' not in index:
+              errors.append('Index não carrega a trava de identidade do Caixa.')
+          if index.find('identity-guard.js') > index.find('@supabase/supabase-js'):
+              errors.append('Trava de identidade precisa carregar antes do Supabase.')
+
+          identity = (root/'identity-guard.js').read_text(encoding='utf-8')
+          if "EXPECTED_PATH='/xburguer-caixa/'" not in identity:
+              errors.append('Trava de identidade perdeu o caminho oficial do Caixa.')
+          if "EXPECTED_SUPABASE_HOST='trnngxezppeembrvxkhh.supabase.co'" not in identity:
+              errors.append('Trava de identidade perdeu o Supabase oficial do Caixa.')
+          if 'validateSupabaseUrl' not in identity or 'window.fetch=function' not in identity:
+              errors.append('Trava de identidade não está bloqueando conexões Supabase divergentes.')
 
           hardening = (root/'system-hardening.js').read_text(encoding='utf-8')
           if 'pageSize=500' not in hardening:
@@ -96,6 +108,8 @@ jobs:
               errors.append('Precache resiliente do PWA não foi encontrado.')
           if 'automatic-conference.js' not in sw:
               errors.append('Service Worker não inclui a conferência automática.')
+          if 'identity-guard.js' not in sw:
+              errors.append('Service Worker não mantém a trava de identidade disponível offline.')
           if 'caches.match(' in sw:
               errors.append('Service Worker usa busca global de cache da origem.')
 
@@ -117,7 +131,7 @@ jobs:
 
           runtime_files = [
               root/'index.html', root/'manifest.webmanifest', root/'service-worker.js',
-              root/'pwa.js', root/'sw.js', root/'app1.js', root/'app2.js', root/'app3.js',
+              root/'identity-guard.js', root/'pwa.js', root/'sw.js', root/'app1.js', root/'app2.js', root/'app3.js',
               root/'app4.js', root/'app5.js', root/'storage-namespace.js',
               root/'system-hardening.js', root/'automatic-conference.js', root/'realtime.js'
           ]
@@ -140,5 +154,5 @@ jobs:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
 
-          print('OK: X-Burguer Caixa v4.18.1 validado em sintaxe, conferência automática, PWA, isolamento e estabilidade.')
+          print('OK: X-Burguer Caixa v4.18.1 validado em sintaxe, identidade, conferência automática, PWA, isolamento e estabilidade.')
           PY
