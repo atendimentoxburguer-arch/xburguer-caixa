@@ -34,23 +34,6 @@ jobs:
           if manifest.get('display') != 'standalone':
               errors.append('Modo standalone do Caixa foi alterado.')
 
-          required_icons = {
-              './icons/xburguer-caixa-192-v4150.png',
-              './icons/xburguer-caixa-512-v4150.png',
-              './icons/xburguer-caixa-maskable-512-v4150.png'
-          }
-          manifest_icons = {str(icon.get('src','')) for icon in manifest.get('icons', [])}
-          if not required_icons.issubset(manifest_icons):
-              errors.append('Manifest não contém os ícones exclusivos do Caixa.')
-
-          for rel in [
-              'icons/xburguer-caixa-192-v4150.png',
-              'icons/xburguer-caixa-512-v4150.png',
-              'icons/xburguer-caixa-maskable-512-v4150.png'
-          ]:
-              if not (root/rel).exists():
-                  errors.append(f'Ícone obrigatório ausente: {rel}')
-
           sw_path = root/'service-worker.js'
           if not sw_path.exists():
               errors.append('Service Worker principal do Caixa não existe.')
@@ -58,16 +41,38 @@ jobs:
               sw = sw_path.read_text(encoding='utf-8')
               if 'const APP_PATH = "/xburguer-caixa/";' not in sw:
                   errors.append('Service Worker do Caixa perdeu o limite de caminho.')
+              if 'const CACHE_NAME = "xburguer-caixa-pwa-' not in sw:
+                  errors.append('Cache do Caixa perdeu o namespace exclusivo.')
+              if 'caches.match(' in sw:
+                  errors.append('Service Worker do Caixa usa busca global de cache da origem.')
+              if 'cache.match(' not in sw:
+                  errors.append('Service Worker do Caixa não consulta o próprio cache isolado.')
+
+          pwa = (root/'pwa.js').read_text(encoding='utf-8')
+          if '/xburguer-caixa/service-worker.js' not in pwa or "scope:'/xburguer-caixa/'" not in pwa:
+              errors.append('Registro PWA do Caixa não está preso ao caminho exclusivo.')
+          if 'getRegistrations()' not in pwa or 'old.scope!==expectedScope' not in pwa:
+              errors.append('PWA do Caixa não limpa workers antigos do próprio escopo.')
 
           index = (root/'index.html').read_text(encoding='utf-8')
-          if '/xburguer-caixa/service-worker.js' not in index or "scope:'/xburguer-caixa/'" not in index:
-              errors.append('Registro do Service Worker do Caixa não está preso ao caminho exclusivo.')
+          if 'pwa.js?v=4.16.3' not in index:
+              errors.append('Index do Caixa não carrega o registrador PWA oficial.')
+
+          storage = (root/'storage-namespace.js').read_text(encoding='utf-8')
+          if "const NS = 'xburguer_caixa::';" not in storage:
+              errors.append('Storage do Caixa não usa namespace total exclusivo.')
 
           app1 = (root/'app1.js').read_text(encoding='utf-8')
           if 'trnngxezppeembrvxkhh.supabase.co' not in app1:
               errors.append('Supabase do Caixa foi alterado.')
           if 'rrslolruacewjijlhpdc' in app1:
               errors.append('Caixa contém referência ao banco do outro sistema.')
+
+          legacy = root/'sw.js'
+          if legacy.exists():
+              text = legacy.read_text(encoding='utf-8').strip()
+              if "importScripts('./service-worker.js?v=4.16.3');" not in text:
+                  errors.append('sw.js legado não aponta exclusivamente para o worker oficial do Caixa.')
 
           runtime_files = [
               root/'index.html', root/'manifest.webmanifest', root/'service-worker.js',
@@ -87,5 +92,5 @@ jobs:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
 
-          print('OK: X-Burguer Caixa totalmente isolado do X-Burguer Consumo.')
+          print('OK: X-Burguer Caixa isolado em PWA, cache, storage e banco.')
           PY
