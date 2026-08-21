@@ -4,8 +4,14 @@
   const num=id=>Number(document.getElementById(id)?.value||0);
   const hasValue=id=>String(document.getElementById(id)?.value??'').trim()!=='';
 
+  function visibleElement(id){
+    const raw=document.getElementById(id);
+    if(raw?.closest('.cash-conference-item'))return raw;
+    return document.getElementById(id+'__brl')||raw;
+  }
+
   function addHelp(id,text,extraClass=''){
-    const el=document.getElementById(id);
+    const el=visibleElement(id);
     const item=el?.closest('.cash-conference-item');
     if(!item||item.querySelector('.cash-conference-help'))return item;
     const help=document.createElement('small');
