@@ -1,4 +1,4 @@
-const APP_VERSION='4.15.1';
+const APP_VERSION='4.15.2';
 const APP_PATH='/xburguer-caixa/';
 const CACHE_NAME=`xburguer-caixa-app-${APP_VERSION}`;
 const CORE_ASSETS=[
@@ -11,7 +11,8 @@ const CORE_ASSETS=[
   './storage-namespace.js',
   './app1.js','./app2.js','./app3.js','./app4.js','./system-hardening.js','./app5.js','./system-guard.js',
   './realtime.js','./mobile-menu-fix.js','./currency-format.js','./pwa.js',
-  './icons/xburguer-caixa-32-v4150.png',
+  './icons/xburguer-caixa-32-v4152.png',
+  './icons/xburguer-caixa-48-v4152.png',
   './icons/xburguer-caixa-192-v4150.png',
   './icons/xburguer-caixa-512-v4150.png',
   './icons/xburguer-caixa-maskable-512-v4150.png'
