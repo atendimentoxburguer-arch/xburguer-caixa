@@ -54,22 +54,30 @@ jobs:
                   errors.append(f'Ícone obrigatório ausente: {rel}')
 
           index = (root/'index.html').read_text(encoding='utf-8')
-          if 'system-hardening.js?v=4.18.0' not in index:
-              errors.append('Index não carrega a camada de estabilidade v4.18.0.')
-          if 'app5.js?v=4.18.0' not in index:
-              errors.append('Index não carrega a lógica final v4.18.0.')
-          if 'cash-conference-help.js?v=4.18.0' not in index:
-              errors.append('Index não carrega a conferência v4.18.0.')
-          if 'pwa.js?v=4.18.0' not in index:
-              errors.append('Index não carrega o registrador PWA v4.18.0.')
+          if 'system-hardening.js?v=4.18.1' not in index:
+              errors.append('Index não carrega a camada de estabilidade na publicação v4.18.1.')
+          if 'app5.js?v=4.18.1' not in index:
+              errors.append('Index não carrega a lógica final na publicação v4.18.1.')
+          if 'automatic-conference.js?v=4.18.1' not in index:
+              errors.append('Index não carrega a conferência automática v4.18.1.')
+          if 'cash-conference-help.js?v=4.18.1' not in index:
+              errors.append('Index não carrega a ajuda da conferência v4.18.1.')
+          if 'pwa.js?v=4.18.1' not in index:
+              errors.append('Index não carrega o registrador PWA v4.18.1.')
 
           hardening = (root/'system-hardening.js').read_text(encoding='utf-8')
-          if "const XB_APP_VERSION='4.18.0';" not in hardening:
-              errors.append('Versão interna do sistema não é 4.18.0.')
-          if "Number(rec.cash||0)-Number(rec.cashOut||0)" not in hardening:
-              errors.append('Regra oficial da conferência em espécie não foi encontrada.')
           if 'pageSize=500' not in hardening:
               errors.append('Carregamento paginado do histórico não foi encontrado.')
+          if 'xbIsNetworkError' not in hardening:
+              errors.append('Proteção de sessão contra falha de internet não foi encontrada.')
+
+          conference = (root/'automatic-conference.js').read_text(encoding='utf-8')
+          if "const AUTO_VERSION='4.18.1';" not in conference:
+              errors.append('Versão da conferência automática não é 4.18.1.')
+          if 'cashCountVerified' not in conference:
+              errors.append('Flag de contagem física opcional não foi encontrada.')
+          if 'buildSaveWarnings=function' not in conference:
+              errors.append('A conferência automática não controla os avisos de salvamento.')
 
           app5 = (root/'app5.js').read_text(encoding='utf-8')
           if 'rpc/restore_cash_backup' not in app5:
@@ -80,18 +88,20 @@ jobs:
               errors.append('Proteção contra descarte acidental de rascunho não foi encontrada.')
 
           sw = (root/'service-worker.js').read_text(encoding='utf-8')
-          if 'const CACHE_NAME = "xburguer-caixa-pwa-v4.18.0";' not in sw:
-              errors.append('Cache do Caixa não está na versão 4.18.0.')
+          if 'const CACHE_NAME = "xburguer-caixa-pwa-v4.18.1";' not in sw:
+              errors.append('Cache do Caixa não está na versão 4.18.1.')
           if 'const APP_PATH = "/xburguer-caixa/";' not in sw:
               errors.append('Service Worker perdeu o limite de caminho.')
           if 'Promise.allSettled' not in sw:
               errors.append('Precache resiliente do PWA não foi encontrado.')
+          if 'automatic-conference.js' not in sw:
+              errors.append('Service Worker não inclui a conferência automática.')
           if 'caches.match(' in sw:
               errors.append('Service Worker usa busca global de cache da origem.')
 
           pwa = (root/'pwa.js').read_text(encoding='utf-8')
-          if '/xburguer-caixa/service-worker.js?v=4.18.0' not in pwa:
-              errors.append('PWA não registra o Service Worker v4.18.0.')
+          if '/xburguer-caixa/service-worker.js?v=4.18.1' not in pwa:
+              errors.append('PWA não registra o Service Worker v4.18.1.')
           if "scope:'/xburguer-caixa/'" not in pwa:
               errors.append('Registro PWA não está preso ao caminho exclusivo.')
 
@@ -109,7 +119,7 @@ jobs:
               root/'index.html', root/'manifest.webmanifest', root/'service-worker.js',
               root/'pwa.js', root/'sw.js', root/'app1.js', root/'app2.js', root/'app3.js',
               root/'app4.js', root/'app5.js', root/'storage-namespace.js',
-              root/'system-hardening.js', root/'realtime.js'
+              root/'system-hardening.js', root/'automatic-conference.js', root/'realtime.js'
           ]
           forbidden = ['/xburguer-controle/', 'xburguer-consumo-', 'rrslolruacewjijlhpdc']
           for path in runtime_files:
@@ -123,12 +133,12 @@ jobs:
                   errors.append(f'{path}: confirmação nativa do navegador encontrada.')
 
           version_css = (root/'version.css').read_text(encoding='utf-8')
-          if '4.18.0' not in version_css:
-              errors.append('Versão visível não é 4.18.0.')
+          if '4.18.1' not in version_css:
+              errors.append('Versão visível não é 4.18.1.')
 
           if errors:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
 
-          print('OK: X-Burguer Caixa v4.18.0 validado em sintaxe, PWA, isolamento, backup e estabilidade.')
+          print('OK: X-Burguer Caixa v4.18.1 validado em sintaxe, conferência automática, PWA, isolamento e estabilidade.')
           PY
