@@ -4,7 +4,7 @@
   if(!nativeValue?.get||!nativeValue?.set)return;
 
   const exactMoneyIds=new Set([
-    'opening','cash','cardOut','online','deliveryCard','cashOut','countedCash',
+    'opening','cash','deliveryCash','cardOut','online','deliveryCard','cashOut','countedCash',
     'anotaVal','aiqVal'
   ]);
 

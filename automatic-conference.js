@@ -6,7 +6,7 @@
 
   function applyCashVerificationRule(record,verifiedOverride){
     if(!record)return record;
-    const expected=roundMoney(Number(record.cash||0)-Number(record.cashOut||0));
+    const expected=roundMoney(Number(record.cash||0)+Number(record.deliveryCash||0)-Number(record.cashOut||0));
     let verified=verifiedOverride;
     if(verified===undefined){
       if(record.cashCountVerified!==undefined)verified=!!record.cashCountVerified;
