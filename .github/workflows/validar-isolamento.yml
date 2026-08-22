@@ -30,6 +30,7 @@ jobs:
 
           root = Path('.')
           errors = []
+          app_version = '4.18.2'
 
           manifest = json.loads((root/'manifest.webmanifest').read_text(encoding='utf-8'))
           if manifest.get('id') != '/xburguer-caixa/caixa-oficial':
@@ -73,6 +74,20 @@ jobs:
           if caixa.find('identity-guard.js') > caixa.find('@supabase/supabase-js'):
               errors.append('Trava de identidade precisa carregar antes do Supabase.')
 
+          versioned_assets = [
+              'style1.css', 'style2.css', 'style3.css', 'style4.css', 'style5.css',
+              'responsive.css', 'responsive-polish.css', 'mobile-menu-hotfix.css',
+              'mobile-readable.css', 'currency-format.css', 'page-transitions.css',
+              'login-transitions.css', 'system-final.css', 'cash-conference-help.css',
+              'version.css', 'identity-guard.js', 'storage-namespace.js',
+              'app1.js', 'app2.js', 'app3.js', 'app4.js', 'system-hardening.js',
+              'app5.js', 'system-guard.js', 'realtime.js', 'mobile-menu-fix.js',
+              'currency-format.js', 'automatic-conference.js', 'cash-conference-help.js'
+          ]
+          for name in versioned_assets:
+              if f'{name}?v={app_version}' not in caixa:
+                  errors.append(f'Tela do Caixa não carrega {name} na versão {app_version}.')
+
           sw = (root/'service-worker.js').read_text(encoding='utf-8')
           if 'const CACHE_NAME = "xburguer-caixa-native-v1";' not in sw:
               errors.append('Cache nativo do Caixa não está ativo.')
@@ -92,6 +107,8 @@ jobs:
               errors.append('Trava de identidade perdeu o caminho oficial.')
           if "EXPECTED_SUPABASE_HOST='trnngxezppeembrvxkhh.supabase.co'" not in identity:
               errors.append('Trava de identidade perdeu o Supabase oficial do Caixa.')
+          if 'validateSupabaseUrl' not in identity or 'window.fetch=function' not in identity:
+              errors.append('Trava de identidade não está bloqueando conexões Supabase divergentes.')
 
           storage = (root/'storage-namespace.js').read_text(encoding='utf-8')
           if "const NS = 'xburguer_caixa::';" not in storage:
@@ -102,10 +119,30 @@ jobs:
               errors.append('Frontend não aponta para o Supabase do Caixa.')
 
           conference = (root/'automatic-conference.js').read_text(encoding='utf-8')
-          if "const AUTO_VERSION='4.18.2';" not in conference:
+          if f"const AUTO_VERSION='{app_version}';" not in conference:
               errors.append('Versão interna atual do sistema foi alterada sem revisão.')
           if 'cashCountVerified' not in conference:
               errors.append('Conferência física opcional não foi encontrada.')
+          if 'buildSaveWarnings=function' not in conference:
+              errors.append('Conferência automática perdeu os avisos de salvamento.')
+
+          hardening = (root/'system-hardening.js').read_text(encoding='utf-8')
+          if 'pageSize=500' not in hardening:
+              errors.append('Carregamento paginado do histórico não foi encontrado.')
+          if 'xbIsNetworkError' not in hardening:
+              errors.append('Proteção de sessão contra falha de internet não foi encontrada.')
+          if 'validateBackupRecords=function' not in hardening:
+              errors.append('Validação completa de backup não foi encontrada.')
+
+          app5 = (root/'app5.js').read_text(encoding='utf-8')
+          if 'rpc/restore_cash_backup' not in app5:
+              errors.append('Restauração atômica de backup não está ativa no frontend.')
+          if 'enterOfflineMode' not in app5:
+              errors.append('Modo offline seguro não foi encontrado.')
+          if 'Descartar e carregar' not in app5:
+              errors.append('Proteção contra descarte acidental de rascunho não foi encontrada.')
+          if 'openConfirmModal' not in app5:
+              errors.append('Confirmações internas do sistema não foram encontradas.')
 
           runtime_files = [
               root/'index.html', root/'caixa.html', root/'manifest.webmanifest',
@@ -129,5 +166,5 @@ jobs:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
 
-          print('OK: X-Burguer Caixa validado com PWA nativo no mesmo padrão do Consumo.')
+          print(f'OK: X-Burguer Caixa {app_version} validado com PWA nativo, isolamento e proteções funcionais.')
           PY
