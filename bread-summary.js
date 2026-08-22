@@ -1,14 +1,19 @@
-/* X-Burguer Caixa — resultados automáticos do controle de pães */
+/* X-Burguer Caixa — estrutura e resumo do controle de pães */
 (function(){
+  'use strict';
+
   const byId=id=>document.getElementById(id);
   const qty=id=>Number(byId(id)?.value||0);
 
   function ensureResult(row,id,label){
-    if(!row||byId(id))return;
+    if(!row)return null;
+    let value=byId(id);
+    if(value)return value;
     const box=document.createElement('div');
     box.className='bread-result';
     box.innerHTML=`<span>${label}</span><b id="${id}">0</b>`;
     row.appendChild(box);
+    return byId(id);
   }
 
   function ensureBreadUi(){
@@ -18,94 +23,64 @@
 
     const panel=idealStart.closest('.panel');
     const head=panel?.querySelector('.bread-row.head');
-    if(head){
-      head.innerHTML='<span>Tipo de pão</span><span>Est. inicial</span><span>Produção</span><span>Est. final</span><span>Acum. mês</span>';
-    }
+    if(head)head.innerHTML='<span>Tipo de pão</span><span>Est. inicial</span><span>Est. final</span><span>Produção</span><span>Acum. mês</span>';
 
     const idealRow=idealStart.closest('.bread-row');
     const gourmetRow=gourmetStart.closest('.bread-row');
-    ensureResult(idealRow,'idealFinal','Est. final');
+    ensureResult(idealRow,'idealFinal','Produção');
     ensureResult(idealRow,'idealMonth','Acum. mês');
-    ensureResult(gourmetRow,'gourmetFinal','Est. final');
+    ensureResult(gourmetRow,'gourmetFinal','Produção');
     ensureResult(gourmetRow,'gourmetMonth','Acum. mês');
 
+    [['idealProd','Pão Ideal'],['gourmetProd','Pão Gourmet']].forEach(([id,name])=>{
+      const input=byId(id);
+      const label=input?.closest('.bread-cell')?.querySelector('span');
+      if(label)label.textContent='Est. final';
+      if(input){input.placeholder='Qtd';input.setAttribute('aria-label','Estoque final do '+name);}
+    });
+
     const note=panel?.querySelector('.bread-note');
-    if(note)note.textContent='Estoque final = estoque inicial − produção. O acumulado mensal soma as produções registradas no mês.';
+    if(note)note.textContent='Informe o estoque inicial e o estoque final. A produção é calculada automaticamente: estoque inicial − estoque final. O acumulado mensal soma as produções do mês.';
     return true;
   }
 
   function updateBreadSummary(){
     if(!ensureBreadUi())return;
-    const selectedDate=byId('date')?.value||isoToday();
+    const selectedDate=byId('date')?.value||((typeof isoToday==='function')?isoToday():'');
     const ym=selectedDate.slice(0,7);
-    const prior=monthRecords(ym).map(normalize).filter(r=>String(r.date||'')<selectedDate);
-    const idealProducedBefore=prior.reduce((sum,r)=>sum+Number(r.breads?.idealProd||0),0);
-    const gourmetProducedBefore=prior.reduce((sum,r)=>sum+Number(r.breads?.gourmetProd||0),0);
+    let prior=[];
+    try{prior=monthRecords(ym).map(normalize).filter(r=>String(r.date||'')<selectedDate)}catch{}
 
-    const idealFinal=qty('idealStart')-qty('idealProd');
-    const gourmetFinal=qty('gourmetStart')-qty('gourmetProd');
-    byId('idealFinal').textContent=idealFinal;
-    byId('gourmetFinal').textContent=gourmetFinal;
-    byId('idealFinal').parentElement?.classList.toggle('negative-stock',idealFinal<0);
-    byId('gourmetFinal').parentElement?.classList.toggle('negative-stock',gourmetFinal<0);
-    byId('idealMonth').textContent=idealProducedBefore+qty('idealProd');
-    byId('gourmetMonth').textContent=gourmetProducedBefore+qty('gourmetProd');
+    const pairs=[
+      {prefix:'ideal',start:'idealStart',final:'idealProd',production:'idealFinal',month:'idealMonth'},
+      {prefix:'gourmet',start:'gourmetStart',final:'gourmetProd',production:'gourmetFinal',month:'gourmetMonth'}
+    ];
+
+    pairs.forEach(item=>{
+      const start=qty(item.start);
+      const final=qty(item.final);
+      const hasStart=String(byId(item.start)?.value??'').trim()!=='';
+      const hasFinal=String(byId(item.final)?.value??'').trim()!=='';
+      const production=hasStart&&hasFinal?start-final:0;
+      const output=byId(item.production);
+      if(output)output.textContent=production;
+      output?.parentElement?.classList.toggle('negative-stock',production<0);
+      const previous=prior.reduce((sum,r)=>sum+Number(r.breads?.[item.prefix+'Prod']||0),0);
+      const month=byId(item.month);
+      if(month)month.textContent=previous+production;
+    });
   }
 
   if(typeof calc==='function'){
-    const originalCalc=calc;
+    const previousCalc=calc;
     calc=function(){
-      const result=originalCalc.apply(this,arguments);
+      const result=previousCalc.apply(this,arguments);
       updateBreadSummary();
       return result;
     };
   }
 
-  if(typeof refreshDailyReport==='function'){
-    const originalDaily=refreshDailyReport;
-    refreshDailyReport=function(){
-      const result=originalDaily.apply(this,arguments);
-      const tbody=byId('dailyBreadTable');
-      const date=byId('dailyReportDate')?.value||isoToday();
-      const record=load().map(normalize).find(r=>r.date===date);
-      if(tbody){
-        const head=tbody.closest('table')?.querySelector('thead tr');
-        if(head)head.innerHTML='<th>Tipo</th><th>Est. inicial</th><th>Produção</th><th>Est. final</th>';
-        if(record){
-          const b=record.breads||{};
-          const idealFinal=Number.isFinite(Number(b.idealFinal))?Number(b.idealFinal):Number(b.idealStart||0)-Number(b.idealProd||0);
-          const gourmetFinal=Number.isFinite(Number(b.gourmetFinal))?Number(b.gourmetFinal):Number(b.gourmetStart||0)-Number(b.gourmetProd||0);
-          tbody.innerHTML=`<tr><td>Pão Ideal</td><td>${Number(b.idealStart||0)}</td><td>${Number(b.idealProd||0)}</td><td>${idealFinal}</td></tr><tr><td>Pão Gourmet</td><td>${Number(b.gourmetStart||0)}</td><td>${Number(b.gourmetProd||0)}</td><td>${gourmetFinal}</td></tr>`;
-        }
-      }
-      return result;
-    };
-  }
-
-  if(typeof refreshMonthly==='function'){
-    const originalMonthly=refreshMonthly;
-    refreshMonthly=function(){
-      const result=originalMonthly.apply(this,arguments);
-      const tbody=byId('monthlyBreadTable');
-      const ym=byId('monthPicker')?.value||monthNow();
-      const month=monthRecords(ym).map(normalize).sort((a,b)=>a.date.localeCompare(b.date));
-      if(tbody){
-        const head=tbody.closest('table')?.querySelector('thead tr');
-        if(head)head.innerHTML='<th>Tipo</th><th>Produção acumulada</th><th>Último est. final</th>';
-        const sum=fn=>month.reduce((total,r)=>total+Number(fn(r)||0),0);
-        const last=month.at(-1);
-        const idealFinal=last?Number(last.breads?.idealFinal??(Number(last.breads?.idealStart||0)-Number(last.breads?.idealProd||0))):0;
-        const gourmetFinal=last?Number(last.breads?.gourmetFinal??(Number(last.breads?.gourmetStart||0)-Number(last.breads?.gourmetProd||0))):0;
-        tbody.innerHTML=`<tr><td>Pão Ideal</td><td>${sum(r=>r.breads?.idealProd)}</td><td>${idealFinal}</td></tr><tr><td>Pão Gourmet</td><td>${sum(r=>r.breads?.gourmetProd)}</td><td>${gourmetFinal}</td></tr>`;
-      }
-      return result;
-    };
-  }
-
-  ['idealStart','idealProd','gourmetStart','gourmetProd'].forEach(id=>{
-    byId(id)?.addEventListener('input',updateBreadSummary);
-  });
-
+  ['idealStart','idealProd','gourmetStart','gourmetProd'].forEach(id=>byId(id)?.addEventListener('input',updateBreadSummary));
   ensureBreadUi();
   updateBreadSummary();
 })();
