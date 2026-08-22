@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const FEATURE_VERSION='4.19.0';
+  const FEATURE_VERSION='4.18.2';
   const byId=id=>document.getElementById(id);
   const qty=id=>Number(byId(id)?.value||0);
 
@@ -237,6 +237,15 @@
   ['idealStart','idealProd','gourmetStart','gourmetProd'].forEach(id=>{
     byId(id)?.addEventListener('input',updateBreadUi);
   });
+
+  /* Se o modo offline restaurou um fechamento antes deste módulo carregar,
+     reabre a data atual pela nova interpretação (Inicial + Final). */
+  try{
+    const date=activeClosingDate||byId('date')?.value;
+    if(date&&typeof loadBestRecordForDate==='function'&&!formDirty){
+      loadBestRecordForDate(date,{notify:false});
+    }
+  }catch{}
 
   updateBreadUi();
 })();
