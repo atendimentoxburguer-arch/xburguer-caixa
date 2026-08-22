@@ -55,6 +55,7 @@ const PRECACHE = [
   "./currency-format.js",
   "./automatic-conference.js",
   "./bread-summary.js",
+  "./bread-start-final.js",
   "./cash-conference-help.js",
 
   "./icons/xburguer-caixa-rounded-32-v3.png",
