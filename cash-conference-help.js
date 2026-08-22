@@ -4,6 +4,7 @@
   const num=id=>Number(document.getElementById(id)?.value||0);
   const hasValue=id=>String(document.getElementById(id)?.value??'').trim()!=='';
   const setText=(el,text)=>{if(el&&el.textContent!==text)el.textContent=text;};
+  const money=value=>typeof br==='function'?br(value):brl.format(value);
 
   function visibleElement(id){
     const raw=document.getElementById(id);
@@ -37,9 +38,33 @@
 
   function expectedCashNow(){return num('cash')-num('cashOut');}
   function salesNow(){
-    try{return channels.reduce((total,_,i)=>total+num('v'+i),0)}catch{return num('daySales')}
+    try{return channels.reduce((total,_,i)=>total+num('v'+i),0)}catch{return 0}
   }
   function paymentNow(){return num('cash')+num('cardOut')+num('online')+num('deliveryCard');}
+
+  /* O Resumo financeiro e Vendas por canal são conferências independentes.
+     O total do resumo soma apenas as formas de pagamento informadas no bloco 1.
+     O total de canais continua sendo calculado exclusivamente pelos lançamentos do bloco 2. */
+  function summaryMonthToDate(){
+    const selectedDate=document.getElementById('date')?.value||((typeof isoToday==='function')?isoToday():'');
+    if(!selectedDate)return paymentNow();
+    const ym=selectedDate.slice(0,7);
+    let previous=0;
+    try{
+      const prior=monthRecords(ym).map(normalize).filter(r=>String(r.date||'')<selectedDate);
+      previous=prior.reduce((total,r)=>total+
+        Number(r.cash||0)+
+        Number(r.cardOut||0)+
+        Number(r.onlinePayment||0)+
+        Number(r.deliveryCard||0),0);
+    }catch{}
+    return previous+paymentNow();
+  }
+
+  function updateSeparatedSalesTotals(){
+    setText(document.getElementById('daySales'),money(paymentNow()));
+    setText(document.getElementById('aSales'),money(summaryMonthToDate()));
+  }
 
   function ensureAutomaticSummary(){
     const title=document.querySelector('.cash-conference-title');
@@ -80,7 +105,7 @@
         : 'Atenção: faltam '+brl.format(Math.abs(diff))+' nas formas de pagamento');
     }
 
-    setText(detail,'Vendas: '+brl.format(sales)+' • Pagamentos: '+brl.format(payments)+' • Dinheiro previsto após retiradas: '+brl.format(expected));
+    setText(detail,'Vendas por canal: '+brl.format(sales)+' • Resumo financeiro: '+brl.format(payments)+' • Dinheiro previsto após retiradas: '+brl.format(expected));
   }
 
   function updatePhysicalCheck(){
@@ -118,6 +143,7 @@
   }
 
   function update(){
+    updateSeparatedSalesTotals();
     updateAutomaticSummary();
     updatePhysicalCheck();
   }
@@ -131,15 +157,15 @@
 
     setLabel('countedCash','Contagem física da gaveta — opcional');
     setLabel('paymentTotal','Pagamentos informados — automático');
-    setLabel('paymentDiff','Diferença pagamentos × vendas — automático');
+    setLabel('paymentDiff','Diferença resumo financeiro × vendas por canal — automático');
     setLabel('cashDiff','Diferença física — somente se contar a gaveta');
     setLabel('dayBalance','Resultado do dia — automático');
 
     addHelp('countedCash','Preencha apenas se quiser comparar o dinheiro real da gaveta com o valor previsto pelo sistema.');
-    addHelp('paymentTotal','Calculado automaticamente somando dinheiro, cartões e Pix/apps informados acima.');
-    addHelp('paymentDiff','R$ 0,00 significa que as formas de pagamento batem com o total das vendas por canal.');
+    addHelp('paymentTotal','Calculado automaticamente somando dinheiro, cartões e Pix/apps informados no Resumo financeiro.');
+    addHelp('paymentDiff','R$ 0,00 significa que o total do Resumo financeiro bate com o total de Vendas por canal.');
     const cashItem=addHelp('cashDiff','Essa verificação é opcional. Sem contagem física, o fechamento financeiro continua funcionando normalmente.');
-    addHelp('dayBalance','Calculado automaticamente: total de vendas − despesas registradas no dia.');
+    addHelp('dayBalance','Calculado automaticamente: total de vendas por canal − despesas registradas no dia.');
 
     if(cashItem&&!document.getElementById('cashExpectedHelp')){
       const expected=document.createElement('small');
@@ -163,7 +189,7 @@
     setup();
     document.addEventListener('input',()=>setTimeout(update,0));
     document.addEventListener('change',()=>setTimeout(update,0));
-    ['paymentTotal','paymentDiff','daySales','dayBalance'].forEach(id=>{
+    ['paymentTotal','paymentDiff','daySales','dayBalance','ctVal','aSales','ctMonthVal'].forEach(id=>{
       const el=document.getElementById(id);
       if(el)new MutationObserver(()=>setTimeout(update,0)).observe(el,{childList:true,characterData:true,subtree:true});
     });
