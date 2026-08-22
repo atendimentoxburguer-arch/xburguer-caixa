@@ -19,8 +19,10 @@
 <script>
 (async function(){
   try{
-    await window.XBRegisterPWA?.();
-    await navigator.serviceWorker?.ready?.catch?.(()=>{});
+    await Promise.race([
+      Promise.resolve(window.XBRegisterPWA?.()),
+      new Promise(resolve=>setTimeout(resolve,2500))
+    ]);
   }catch(e){console.warn('PWA Caixa:',e)}
   location.replace('/xburguer-caixa/caixa.html?app=caixa');
 })();
