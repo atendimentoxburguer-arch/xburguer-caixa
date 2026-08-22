@@ -4,15 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>X-Burguer Caixa</title>
-<link rel="manifest" href="manifest.webmanifest?v=pwa-caixa-rounded-1">
+<link rel="manifest" href="manifest.webmanifest?v=pwa-caixa-native-3">
 <meta name="theme-color" content="#12293D">
 <meta name="application-name" content="X-Burguer Caixa">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="X-Burguer Caixa">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=pwa-caixa-rounded-1">
-<link rel="icon" type="image/svg+xml" href="icons/xburguer-caixa-rounded-v1.svg?v=pwa-caixa-rounded-1">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/xburguer-caixa-192-v4150.png?v=pwa-caixa-rounded-1">
+<link rel="apple-touch-icon" href="icons/xburguer-caixa-rounded-192-v3.png?v=pwa-caixa-native-3">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/xburguer-caixa-rounded-192-v3.png?v=pwa-caixa-native-3">
 </head>
 <body>
 <p>Abrindo X-Burguer Caixa...</p>
@@ -38,7 +37,7 @@
       }
 
       const reg=await navigator.serviceWorker.register(
-        '/xburguer-caixa/service-worker.js?v=rounded-1',
+        '/xburguer-caixa/service-worker.js?v=native-3',
         {scope:'/xburguer-caixa/',updateViaCache:'none'}
       );
       await reg.update().catch(()=>{});
