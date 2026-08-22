@@ -21,12 +21,6 @@
       "purpose": "any"
     },
     {
-      "src": "./icons/xburguer-caixa-rounded-512-v4.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
       "src": "./icons/xburguer-caixa-maskable-512-v4150.png",
       "sizes": "512x512",
       "type": "image/png",
