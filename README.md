@@ -26,9 +26,10 @@ Arquivos, alterações, workflows e configurações do X-Burguer Controle não d
 - sincronização automática com Supabase e tempo real;
 - histórico com edição e exclusão controladas;
 - relatórios diário e mensal;
-- controle de pães com estoque final automático;
+- controle de pães por estoque inicial e estoque final;
 - pedidos online e vendas por canal;
 - despesas do dia;
+- resumo financeiro com Dinheiro (Caixa), Dinheiro (Entregas), cartões e Pix/apps;
 - conferência automática de pagamentos e contagem física opcional;
 - backup JSON/CSV e restauração atômica;
 - modo offline seguro;
@@ -36,8 +37,18 @@ Arquivos, alterações, workflows e configurações do X-Burguer Controle não d
 
 ## Regra atual do controle de pães
 
-O campo **Saída** não é utilizado. O cálculo oficial é:
+O usuário informa **Estoque inicial** e **Estoque final**. O sistema calcula automaticamente:
 
-`Estoque final = Estoque inicial - Produção`
+`Produção = Estoque inicial - Estoque final`
 
-O acumulado mensal soma as produções registradas no mês.
+O **Acumulado do mês** soma as produções calculadas no mês. O campo legado **Saída** não é utilizado.
+
+## Regras financeiras atuais
+
+O **Total de Vendas Geral** do Resumo financeiro é independente do total de **Vendas por canal** e soma os valores do próprio bloco financeiro, incluindo o saldo inicial.
+
+A conferência física da gaveta usa:
+
+`Dinheiro previsto = Dinheiro (Caixa) + Dinheiro (Entregas) - retiradas para despesas`
+
+O saldo inicial não entra na conferência física da gaveta.
