@@ -1,4 +1,4 @@
-const CACHE_NAME = "xburguer-caixa-native-v5";
+const CACHE_NAME = "xburguer-caixa-native-v4";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
   "./",
