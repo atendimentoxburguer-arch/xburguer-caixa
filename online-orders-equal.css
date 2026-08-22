@@ -1,0 +1,12 @@
+/* Pedidos online — quantidade e valor com o mesmo tamanho */
+@media (min-width: 621px){
+  .panel:has(#anotaQtd) > .data-row{
+    grid-template-columns:minmax(155px,1.35fr) minmax(0,1fr) minmax(0,1fr);
+  }
+  .panel:has(#anotaQtd) > .data-row input:nth-child(2),
+  .panel:has(#anotaQtd) > .data-row input:nth-child(3){
+    width:100%;
+    min-width:0;
+    height:44px;
+  }
+}
