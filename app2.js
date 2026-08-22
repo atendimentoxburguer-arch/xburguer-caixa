@@ -23,7 +23,7 @@ function currentRecord(dateOverride=null){
   const cashDifference=n('countedCash')-expectedCash;
   const result=sales-expense;
   const recordDate=dateOverride||activeClosingDate||$('date').value||isoToday();
-  return{date:recordDate,resp:$('resp').value.trim(),opening:n('opening'),cash:n('cash'),cardOut:n('cardOut'),onlinePayment:n('online'),deliveryCard:n('deliveryCard'),cashOut:n('cashOut'),countedCash:n('countedCash'),expectedCash,cashDifference,paymentTotal,paymentDifference:paymentTotal-sales,sales,orders,expense,result,balance:result,channels:channels.map((name,i)=>({name,q:q[i],v:v[i]})),online:{anotaQtd:n('anotaQtd'),anotaVal:n('anotaVal'),aiqQtd:n('aiqQtd'),aiqVal:n('aiqVal'),orders:n('anotaQtd')+n('aiqQtd'),value:n('anotaVal')+n('aiqVal')},expenses,obs:$('obs').value.trim(),breads:{idealStart:n('idealStart'),idealProd:n('idealProd'),idealOut:n('idealOut'),idealFinal:n('idealStart')+n('idealProd')-n('idealOut'),gourmetStart:n('gourmetStart'),gourmetProd:n('gourmetProd'),gourmetOut:n('gourmetOut'),gourmetFinal:n('gourmetStart')+n('gourmetProd')-n('gourmetOut')},savedAt:new Date().toISOString()}
+  return{date:recordDate,resp:$('resp').value.trim(),opening:n('opening'),cash:n('cash'),cardOut:n('cardOut'),onlinePayment:n('online'),deliveryCard:n('deliveryCard'),cashOut:n('cashOut'),countedCash:n('countedCash'),expectedCash,cashDifference,paymentTotal,paymentDifference:paymentTotal-sales,sales,orders,expense,result,balance:result,channels:channels.map((name,i)=>({name,q:q[i],v:v[i]})),online:{anotaQtd:n('anotaQtd'),anotaVal:n('anotaVal'),aiqQtd:n('aiqQtd'),aiqVal:n('aiqVal'),orders:n('anotaQtd')+n('aiqQtd'),value:n('anotaVal')+n('aiqVal')},expenses,obs:$('obs').value.trim(),breads:{idealStart:n('idealStart'),idealProd:n('idealProd'),idealOut:0,idealFinal:n('idealStart')+n('idealProd'),gourmetStart:n('gourmetStart'),gourmetProd:n('gourmetProd'),gourmetOut:0,gourmetFinal:n('gourmetStart')+n('gourmetProd')},savedAt:new Date().toISOString()}
 }
 
 function monthRecords(ym){return load().filter(r=>(r.date||'').startsWith(ym))}
@@ -63,10 +63,6 @@ function calc(){
   });
   $('ctMonthQtd').textContent=(priorMonth.reduce((a,r)=>a+Number(r.orders||0),0)+orders)+' até o dia';
   $('ctMonthVal').textContent=br(priorMonth.reduce((a,r)=>a+Number(r.sales||0),0)+sales);
-  const idealFinal=n('idealStart')+n('idealProd')-n('idealOut'),gourmetFinal=n('gourmetStart')+n('gourmetProd')-n('gourmetOut');
-  $('idealFinal').textContent=idealFinal;$('gourmetFinal').textContent=gourmetFinal;
-  $('idealMonth').textContent=sum(r=>r.breads?.idealOut)+n('idealOut');$('gourmetMonth').textContent=sum(r=>r.breads?.gourmetOut)+n('gourmetOut');
-  $('idealFinal').parentElement.classList.toggle('negative-stock',idealFinal<0);$('gourmetFinal').parentElement.classList.toggle('negative-stock',gourmetFinal<0);
   const expenseAccum=sum(r=>r.expense)+expense,cashOutAccum=sum(r=>r.cashOut)+n('cashOut');
   $('aOpening').textContent=br(sum(r=>r.opening)+n('opening'));$('aCash').textContent=br(sum(r=>r.cash)+n('cash'));$('aCardOut').textContent=br(sum(r=>r.cardOut)+n('cardOut'));$('aOnline').textContent=br(sum(r=>r.onlinePayment)+n('online'));$('aDeliveryCard').textContent=br(sum(r=>r.deliveryCard)+n('deliveryCard'));$('aExpense').textContent=br(expenseAccum);$('aCashOut').textContent=br(cashOutAccum);$('expenseMonthTotal').textContent=br(expenseAccum);$('aSales').textContent=br(sum(r=>r.sales)+sales);$('aBalance').textContent=br(sum(r=>r.result)+result);setTone($('aBalance'),sum(r=>r.result)+result);
   const priorOnline=priorMonth.reduce((a,r)=>a+Number(r.online?.value||0),0);const priorOnlineQ=priorMonth.reduce((a,r)=>a+Number(r.online?.orders||0),0);$('onlineTotalVal').textContent=br(priorOnline+onlinePeriod);$('onlineTotalQtd').textContent=(priorOnlineQ+onlineOrders)+' pedidos';
@@ -139,7 +135,7 @@ function resetFormFields(date){
   const targetDate=date||isoToday();
   $('resp').value='';
   ['opening','cash','cardOut','online','deliveryCard','cashOut','countedCash','anotaVal','aiqVal'].forEach(id=>$(id).value='');
-  ['idealStart','idealProd','idealOut','gourmetStart','gourmetProd','gourmetOut','anotaQtd','aiqQtd'].forEach(id=>$(id).value='');
+  ['idealStart','idealProd','gourmetStart','gourmetProd','anotaQtd','aiqQtd'].forEach(id=>$(id).value='');
   $('obs').value='';
   channels.forEach((_,i)=>{$('q'+i).value='';$('v'+i).value=''});
   makeExpenses(14);
@@ -166,7 +162,7 @@ function populateForm(rec,{source='saved'}={}){
   $('opening').value=r.opening||'';$('cash').value=r.cash||'';$('cardOut').value=r.cardOut||'';$('online').value=r.onlinePayment||'';$('deliveryCard').value=r.deliveryCard||'';$('cashOut').value=r.cashOut||'';$('countedCash').value=r.countedCash||'';
   channels.forEach((_,i)=>{$('q'+i).value=r.channels?.[i]?.q||'';$('v'+i).value=r.channels?.[i]?.v||''});
   $('anotaQtd').value=r.online?.anotaQtd||'';$('anotaVal').value=r.online?.anotaVal||'';$('aiqQtd').value=r.online?.aiqQtd||'';$('aiqVal').value=r.online?.aiqVal||'';
-  $('idealStart').value=r.breads?.idealStart||'';$('idealProd').value=r.breads?.idealProd||'';$('idealOut').value=r.breads?.idealOut||'';$('gourmetStart').value=r.breads?.gourmetStart||'';$('gourmetProd').value=r.breads?.gourmetProd||'';$('gourmetOut').value=r.breads?.gourmetOut||'';
+  $('idealStart').value=r.breads?.idealStart||'';$('idealProd').value=r.breads?.idealProd||'';$('gourmetStart').value=r.breads?.gourmetStart||'';$('gourmetProd').value=r.breads?.gourmetProd||'';
   $('obs').value=r.obs||'';
   makeExpenses(Math.max(14,r.expenses?.length||0));
   (r.expenses||[]).forEach((e,i)=>{const row=[...document.querySelectorAll('#expenses .expense-row')][i];if(row){const idx=row.dataset.idx;$('ed'+idx).value=e.d||'';$('ev'+idx).value=e.val||''}});
