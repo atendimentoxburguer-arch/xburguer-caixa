@@ -1,8 +1,31 @@
 /* X-Burguer Caixa — conferência automática visual v4.18.1 */
 (function(){
   const brl=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
-  const num=id=>Number(document.getElementById(id)?.value||0);
-  const hasValue=id=>String(document.getElementById(id)?.value??'').trim()!=='';
+
+  function parseMoneyValue(value){
+    let s=String(value??'').trim();
+    if(!s)return 0;
+    s=s.replace(/R\$/gi,'').replace(/\s+/g,'');
+    if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');
+    s=s.replace(/[^0-9.-]/g,'');
+    const n=Number(s);
+    return Number.isFinite(n)?n:0;
+  }
+
+  function num(id){
+    const raw=document.getElementById(id);
+    const rawValue=String(raw?.value??'').trim();
+    if(rawValue!==''){
+      const direct=Number(rawValue);
+      if(Number.isFinite(direct))return direct;
+      const parsed=parseMoneyValue(rawValue);
+      if(Number.isFinite(parsed))return parsed;
+    }
+    const proxy=document.getElementById(id+'__brl');
+    return parseMoneyValue(proxy?.value||'');
+  }
+
+  const hasValue=id=>String(document.getElementById(id)?.value??document.getElementById(id+'__brl')?.value??'').trim()!=='';
   const setText=(el,text)=>{if(el&&el.textContent!==text)el.textContent=text;};
   const money=value=>typeof br==='function'?br(value):brl.format(value);
 
@@ -190,6 +213,20 @@
 
   function boot(){
     setup();
+
+    /* Reforça a regra no cálculo principal, evitando que o valor antigo dos canais
+       sobrescreva o Total de Vendas Geral depois de uma digitação. */
+    if(typeof window.calc==='function'&&!window.calc.__xbSummaryTotalFixed){
+      const previousCalc=window.calc;
+      const wrappedCalc=function(){
+        const result=previousCalc.apply(this,arguments);
+        queueMicrotask(updateSeparatedSalesTotals);
+        return result;
+      };
+      wrappedCalc.__xbSummaryTotalFixed=true;
+      window.calc=wrappedCalc;
+    }
+
     document.addEventListener('input',()=>setTimeout(update,0));
     document.addEventListener('change',()=>setTimeout(update,0));
     ['paymentTotal','paymentDiff','daySales','dayBalance','ctVal','aSales','ctMonthVal'].forEach(id=>{
