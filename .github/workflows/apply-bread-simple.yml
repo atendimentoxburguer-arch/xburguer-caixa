@@ -1,0 +1,163 @@
+name: Aplicar simplificacao do controle de paes
+
+on:
+  push:
+    branches: [feature/bread-simple]
+
+permissions:
+  contents: write
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/bread-simple
+
+      - name: Simplificar controle de paes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def sub(path, pattern, repl, expected=1, flags=0):
+              p=Path(path)
+              text=p.read_text(encoding='utf-8')
+              new,n=re.subn(pattern,repl,text,flags=flags)
+              if n != expected:
+                  raise SystemExit(f'{path}: esperado {expected} substituicao(oes), encontrado {n} para {pattern!r}')
+              p.write_text(new,encoding='utf-8')
+
+          def replace(path, old, new, expected=1):
+              p=Path(path)
+              text=p.read_text(encoding='utf-8')
+              n=text.count(old)
+              if n != expected:
+                  raise SystemExit(f'{path}: esperado {expected} ocorrencia(s), encontrado {n} para {old!r}')
+              p.write_text(text.replace(old,new),encoding='utf-8')
+
+          # Tela principal: somente Tipo, Estoque inicial e Producao.
+          replace(
+              'shell3.js',
+              '<div class=\\"bread-row head\\"><span>Tipo de pão</span><span>Est. inicial</span><span>Produção</span><span>Saída</span><span>Est. final</span><span>Acum. mês</span></div>',
+              '<div class=\\"bread-row head\\"><span>Tipo de pão</span><span>Est. inicial</span><span>Produção</span></div>'
+          )
+
+          for bread_id in ('idealOut','gourmetOut'):
+              sub(
+                  'shell4.js',
+                  rf'\s*<label class=\\"bread-cell\\"><span>Saída</span><input id=\\"{bread_id}\\" type=\\"number\\" min=\\"0\\" step=\\"1\\" placeholder=\\"Qtd\\"></label>\\n',
+                  ''
+              )
+
+          for final_id,month_id in (('idealFinal','idealMonth'),('gourmetFinal','gourmetMonth')):
+              sub(
+                  'shell4.js',
+                  rf'\s*<div class=\\"bread-result\\"><span>Est\. final</span><b id=\\"{final_id}\\">0</b></div>\\n\s*<div class=\\"bread-result\\"><span>Acum\. mês</span><b id=\\"{month_id}\\">0</b></div>\\n',
+                  ''
+              )
+
+          replace(
+              'shell4.js',
+              '<div class=\\"bread-note\\">Estoque final = estoque inicial + produção − saída. O acumulado mensal soma as saídas registradas no mês.</div>',
+              '<div class=\\"bread-note\\">Informe somente o estoque inicial e a produção de pães do dia.</div>'
+          )
+
+          # Relatorios deixam de exibir Saida/Estoque final.
+          replace(
+              'shell6.js',
+              '<thead><tr><th>Tipo</th><th>Est. inicial</th><th>Produção</th><th>Saída</th><th>Est. final</th></tr></thead><tbody id=\\"dailyBreadTable\\"></tbody>',
+              '<thead><tr><th>Tipo</th><th>Est. inicial</th><th>Produção</th></tr></thead><tbody id=\\"dailyBreadTable\\"></tbody>'
+          )
+          replace(
+              'shell7.js',
+              '<thead><tr><th>Tipo</th><th>Produção</th><th>Saída</th><th>Último est. final</th></tr></thead><tbody id=\\"monthlyBreadTable\\"></tbody>',
+              '<thead><tr><th>Tipo</th><th>Produção acumulada</th></tr></thead><tbody id=\\"monthlyBreadTable\\"></tbody>'
+          )
+
+          # Dados novos mantem os campos antigos apenas para compatibilidade com o RPC/banco.
+          replace(
+              'app2.js',
+              "breads:{idealStart:n('idealStart'),idealProd:n('idealProd'),idealOut:n('idealOut'),idealFinal:n('idealStart')+n('idealProd')-n('idealOut'),gourmetStart:n('gourmetStart'),gourmetProd:n('gourmetProd'),gourmetOut:n('gourmetOut'),gourmetFinal:n('gourmetStart')+n('gourmetProd')-n('gourmetOut')}",
+              "breads:{idealStart:n('idealStart'),idealProd:n('idealProd'),idealOut:0,idealFinal:n('idealStart')+n('idealProd'),gourmetStart:n('gourmetStart'),gourmetProd:n('gourmetProd'),gourmetOut:0,gourmetFinal:n('gourmetStart')+n('gourmetProd')}"
+          )
+          sub(
+              'app2.js',
+              r"\n  const idealFinal=n\('idealStart'\)\+n\('idealProd'\)-n\('idealOut'\),gourmetFinal=n\('gourmetStart'\)\+n\('gourmetProd'\)-n\('gourmetOut'\);\n  \$\('idealFinal'\)\.textContent=idealFinal;\$\('gourmetFinal'\)\.textContent=gourmetFinal;\n  \$\('idealMonth'\)\.textContent=sum\(r=>r\.breads\?\.idealOut\)\+n\('idealOut'\);\$\('gourmetMonth'\)\.textContent=sum\(r=>r\.breads\?\.gourmetOut\)\+n\('gourmetOut'\);\n  \$\('idealFinal'\)\.parentElement\.classList\.toggle\('negative-stock',idealFinal<0\);\$\('gourmetFinal'\)\.parentElement\.classList\.toggle\('negative-stock',gourmetFinal<0\);",
+              ''
+          )
+          replace(
+              'app2.js',
+              "['idealStart','idealProd','idealOut','gourmetStart','gourmetProd','gourmetOut','anotaQtd','aiqQtd'].forEach(id=>$(id).value='');",
+              "['idealStart','idealProd','gourmetStart','gourmetProd','anotaQtd','aiqQtd'].forEach(id=>$(id).value='');"
+          )
+          replace(
+              'app2.js',
+              "$('idealStart').value=r.breads?.idealStart||'';$('idealProd').value=r.breads?.idealProd||'';$('idealOut').value=r.breads?.idealOut||'';$('gourmetStart').value=r.breads?.gourmetStart||'';$('gourmetProd').value=r.breads?.gourmetProd||'';$('gourmetOut').value=r.breads?.gourmetOut||'';",
+              "$('idealStart').value=r.breads?.idealStart||'';$('idealProd').value=r.breads?.idealProd||'';$('gourmetStart').value=r.breads?.gourmetStart||'';$('gourmetProd').value=r.breads?.gourmetProd||'';"
+          )
+
+          replace(
+              'app3.js',
+              "const quantities=[...rec.channels.map(c=>c.q),rec.online.anotaQtd,rec.online.aiqQtd,rec.breads.idealStart,rec.breads.idealProd,rec.breads.idealOut,rec.breads.gourmetStart,rec.breads.gourmetProd,rec.breads.gourmetOut];",
+              "const quantities=[...rec.channels.map(c=>c.q),rec.online.anotaQtd,rec.online.aiqQtd,rec.breads.idealStart,rec.breads.idealProd,rec.breads.gourmetStart,rec.breads.gourmetProd];"
+          )
+          replace(
+              'app3.js',
+              "  if(rec.breads.idealFinal<0)return'A saída de Pão Ideal é maior que o estoque inicial + produção.';\n  if(rec.breads.gourmetFinal<0)return'A saída de Pão Gourmet é maior que o estoque inicial + produção.';\n",
+              ''
+          )
+
+          replace(
+              'app4.js',
+              "const b=r.breads||{};$('dailyBreadTable').innerHTML=`<tr><td>Pão Ideal</td><td>${Number(b.idealStart||0)}</td><td>${Number(b.idealProd||0)}</td><td>${Number(b.idealOut||0)}</td><td>${Number(b.idealFinal||0)}</td></tr><tr><td>Pão Gourmet</td><td>${Number(b.gourmetStart||0)}</td><td>${Number(b.gourmetProd||0)}</td><td>${Number(b.gourmetOut||0)}</td><td>${Number(b.gourmetFinal||0)}</td></tr>`;",
+              "const b=r.breads||{};$('dailyBreadTable').innerHTML=`<tr><td>Pão Ideal</td><td>${Number(b.idealStart||0)}</td><td>${Number(b.idealProd||0)}</td></tr><tr><td>Pão Gourmet</td><td>${Number(b.gourmetStart||0)}</td><td>${Number(b.gourmetProd||0)}</td></tr>`;"
+          )
+          replace(
+              'app4.js',
+              "$('monthlyBreadTable').innerHTML=`<tr><td>Pão Ideal</td><td>${sum(r=>r.breads?.idealProd)}</td><td>${sum(r=>r.breads?.idealOut)}</td><td>${Number(last?.breads?.idealFinal||0)}</td></tr><tr><td>Pão Gourmet</td><td>${sum(r=>r.breads?.gourmetProd)}</td><td>${sum(r=>r.breads?.gourmetOut)}</td><td>${Number(last?.breads?.gourmetFinal||0)}</td></tr>`;",
+              "$('monthlyBreadTable').innerHTML=`<tr><td>Pão Ideal</td><td>${sum(r=>r.breads?.idealProd)}</td></tr><tr><td>Pão Gourmet</td><td>${sum(r=>r.breads?.gourmetProd)}</td></tr>`;"
+          )
+          sub(
+              'app4.js',
+              r"function exportCSV\(\)\{const rows=\[\['Data','Responsável','Vendas','Despesas','Dinheiro retirado p/ despesas','Resultado','Pedidos','Dinheiro','Cartões','Pix/App','Diferença Caixa','Pão Ideal Saída','Pão Ideal Final','Pão Gourmet Saída','Pão Gourmet Final','Observações'\],\.\.\.load\(\)\.map\(normalize\)\.map\(r=>\[r\.date,r\.resp,r\.sales,r\.expense,r\.cashOut\|\|0,r\.result,r\.orders,r\.cash,\(r\.cardOut\|\|0\)\+\(r\.deliveryCard\|\|0\),r\.onlinePayment,r\.cashDifference,r\.breads\?\.idealOut\|\|0,r\.breads\?\.idealFinal\|\|0,r\.breads\?\.gourmetOut\|\|0,r\.breads\?\.gourmetFinal\|\|0,r\.obs\]\)\];",
+              "function exportCSV(){const rows=[['Data','Responsável','Vendas','Despesas','Dinheiro retirado p/ despesas','Resultado','Pedidos','Dinheiro','Cartões','Pix/App','Diferença Caixa','Pão Ideal Est. inicial','Pão Ideal Produção','Pão Gourmet Est. inicial','Pão Gourmet Produção','Observações'],...load().map(normalize).map(r=>[r.date,r.resp,r.sales,r.expense,r.cashOut||0,r.result,r.orders,r.cash,(r.cardOut||0)+(r.deliveryCard||0),r.onlinePayment,r.cashDifference,r.breads?.idealStart||0,r.breads?.idealProd||0,r.breads?.gourmetStart||0,r.breads?.gourmetProd||0,r.obs])];"
+          )
+
+          # Layout responsivo para apenas dois campos editaveis por tipo de pao.
+          p=Path('style3.css')
+          css=p.read_text(encoding='utf-8')
+          marker='/* bread-simple-v1 */'
+          if marker not in css:
+              css += '''\n\n/* bread-simple-v1: somente estoque inicial e producao */\n.bread-row{grid-template-columns:minmax(150px,1.15fr) repeat(2,minmax(150px,1fr));gap:10px;}\n@media(max-width:860px){.bread-row{grid-template-columns:repeat(2,minmax(0,1fr));}.bread-name{grid-column:1/-1;}}\n@media(max-width:390px){.bread-row{grid-template-columns:minmax(0,1fr);}.bread-name{grid-column:1;}}\n'''
+              p.write_text(css,encoding='utf-8')
+
+          # Cache bust apenas dos arquivos afetados, sem mudar a versao geral do sistema.
+          for asset in ['style3.css','shell3.js','shell4.js','shell6.js','shell7.js','app2.js','app3.js','app4.js']:
+              replace('caixa.html',f'{asset}?v=4.18.2',f'{asset}?v=4.18.2-bread1')
+
+          print('OK: controle de paes simplificado para Estoque inicial + Producao.')
+          PY
+
+      - name: Conferir sintaxe JavaScript
+        run: |
+          node --check app2.js
+          node --check app3.js
+          node --check app4.js
+          node --check shell3.js
+          node --check shell4.js
+          node --check shell6.js
+          node --check shell7.js
+
+      - name: Commitar alteracoes
+        run: |
+          if git diff --quiet; then
+            echo "Nenhuma alteracao pendente."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add shell3.js shell4.js shell6.js shell7.js app2.js app3.js app4.js style3.css caixa.html
+          git commit -m "Simplificar controle de paes para inicial e producao [skip ci]"
+          git push origin HEAD:feature/bread-simple
