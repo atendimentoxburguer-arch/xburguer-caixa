@@ -1,0 +1,89 @@
+name: Aplicar regra de estoque final dos paes
+
+on:
+  push:
+    branches: [fix/bread-subtract-production]
+
+permissions:
+  contents: write
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/bread-subtract-production
+
+      - name: Ajustar formula dos paes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, expected=1):
+              p=Path(path)
+              text=p.read_text(encoding='utf-8')
+              n=text.count(old)
+              if n != expected:
+                  raise SystemExit(f'{path}: esperado {expected}, encontrado {n} para {old!r}')
+              p.write_text(text.replace(old,new),encoding='utf-8')
+
+          replace('app2.js',
+              "breads:{idealStart:n('idealStart'),idealProd:n('idealProd'),idealOut:0,idealFinal:n('idealStart')+n('idealProd'),gourmetStart:n('gourmetStart'),gourmetProd:n('gourmetProd'),gourmetOut:0,gourmetFinal:n('gourmetStart')+n('gourmetProd')}",
+              "breads:{idealStart:n('idealStart'),idealProd:n('idealProd'),idealOut:0,idealFinal:n('idealStart')-n('idealProd'),gourmetStart:n('gourmetStart'),gourmetProd:n('gourmetProd'),gourmetOut:0,gourmetFinal:n('gourmetStart')-n('gourmetProd')}"
+          )
+          replace('app2.js',
+              "if(r.breads.idealFinal===undefined)r.breads.idealFinal=Number(r.breads.idealStart||0)+Number(r.breads.idealProd||0)-Number(r.breads.idealOut||0);",
+              "if(r.breads.idealFinal===undefined)r.breads.idealFinal=Number(r.breads.idealStart||0)-Number(r.breads.idealProd||0);"
+          )
+          replace('app2.js',
+              "if(r.breads.gourmetFinal===undefined)r.breads.gourmetFinal=Number(r.breads.gourmetStart||0)+Number(r.breads.gourmetProd||0)-Number(r.breads.gourmetOut||0);",
+              "if(r.breads.gourmetFinal===undefined)r.breads.gourmetFinal=Number(r.breads.gourmetStart||0)-Number(r.breads.gourmetProd||0);"
+          )
+          replace('app3.js',
+              "  if(rec.expenses.some(e=>e.val>0&&!e.d))return'Informe a descrição de toda despesa que possui valor.';\n  return true;",
+              "  if(rec.expenses.some(e=>e.val>0&&!e.d))return'Informe a descrição de toda despesa que possui valor.';\n  if(rec.breads.idealFinal<0)return'A produção de Pão Ideal não pode ser maior que o estoque inicial.';\n  if(rec.breads.gourmetFinal<0)return'A produção de Pão Gourmet não pode ser maior que o estoque inicial.';\n  return true;"
+          )
+          replace('bread-summary.js',
+              "if(note)note.textContent='Estoque final = estoque inicial + produção. O acumulado mensal soma as produções registradas no mês.';",
+              "if(note)note.textContent='Estoque final = estoque inicial − produção. O acumulado mensal soma as produções registradas no mês.';"
+          )
+          replace('bread-summary.js',
+              "const idealFinal=qty('idealStart')+qty('idealProd');\n    const gourmetFinal=qty('gourmetStart')+qty('gourmetProd');",
+              "const idealFinal=qty('idealStart')-qty('idealProd');\n    const gourmetFinal=qty('gourmetStart')-qty('gourmetProd');"
+          )
+          replace('bread-summary.js',
+              "byId('gourmetFinal').textContent=gourmetFinal;\n    byId('idealMonth').textContent=idealProducedBefore+qty('idealProd');",
+              "byId('gourmetFinal').textContent=gourmetFinal;\n    byId('idealFinal').parentElement?.classList.toggle('negative-stock',idealFinal<0);\n    byId('gourmetFinal').parentElement?.classList.toggle('negative-stock',gourmetFinal<0);\n    byId('idealMonth').textContent=idealProducedBefore+qty('idealProd');"
+          )
+          replace('bread-summary.js',
+              "const idealFinal=Number.isFinite(Number(b.idealFinal))?Number(b.idealFinal):Number(b.idealStart||0)+Number(b.idealProd||0);\n          const gourmetFinal=Number.isFinite(Number(b.gourmetFinal))?Number(b.gourmetFinal):Number(b.gourmetStart||0)+Number(b.gourmetProd||0);",
+              "const idealFinal=Number.isFinite(Number(b.idealFinal))?Number(b.idealFinal):Number(b.idealStart||0)-Number(b.idealProd||0);\n          const gourmetFinal=Number.isFinite(Number(b.gourmetFinal))?Number(b.gourmetFinal):Number(b.gourmetStart||0)-Number(b.gourmetProd||0);"
+          )
+          replace('bread-summary.js',
+              "const idealFinal=last?Number(last.breads?.idealFinal??(Number(last.breads?.idealStart||0)+Number(last.breads?.idealProd||0))):0;\n        const gourmetFinal=last?Number(last.breads?.gourmetFinal??(Number(last.breads?.gourmetStart||0)+Number(last.breads?.gourmetProd||0))):0;",
+              "const idealFinal=last?Number(last.breads?.idealFinal??(Number(last.breads?.idealStart||0)-Number(last.breads?.idealProd||0))):0;\n        const gourmetFinal=last?Number(last.breads?.gourmetFinal??(Number(last.breads?.gourmetStart||0)-Number(last.breads?.gourmetProd||0))):0;"
+          )
+          replace('caixa.html','app2.js?v=4.18.2-bread1','app2.js?v=4.18.2-bread3')
+          replace('caixa.html','app3.js?v=4.18.2-bread1','app3.js?v=4.18.2-bread3')
+          replace('caixa.html','bread-summary.js?v=4.18.2-bread2','bread-summary.js?v=4.18.2-bread3')
+          print('OK: estoque final = estoque inicial - producao.')
+          PY
+
+      - name: Conferir sintaxe JavaScript
+        run: |
+          node --check app2.js
+          node --check app3.js
+          node --check bread-summary.js
+
+      - name: Commitar alteracoes
+        run: |
+          if git diff --quiet; then
+            echo "Nenhuma alteracao pendente."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app2.js app3.js bread-summary.js caixa.html
+          git commit -m "Corrigir estoque final para subtrair producao [skip ci]"
+          git push origin HEAD:fix/bread-subtract-production
