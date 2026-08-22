@@ -47,6 +47,7 @@ const PRECACHE = [
   "./app3.js",
   "./app4.js",
   "./system-hardening.js",
+  "./data-consistency.js",
   "./app5.js",
   "./system-guard.js",
   "./realtime.js",
