@@ -23,7 +23,7 @@ function currentRecord(dateOverride=null){
   const cashDifference=n('countedCash')-expectedCash;
   const result=sales-expense;
   const recordDate=dateOverride||activeClosingDate||$('date').value||isoToday();
-  return{date:recordDate,resp:$('resp').value.trim(),opening:n('opening'),cash:n('cash'),cardOut:n('cardOut'),onlinePayment:n('online'),deliveryCard:n('deliveryCard'),cashOut:n('cashOut'),countedCash:n('countedCash'),expectedCash,cashDifference,paymentTotal,paymentDifference:paymentTotal-sales,sales,orders,expense,result,balance:result,channels:channels.map((name,i)=>({name,q:q[i],v:v[i]})),online:{anotaQtd:n('anotaQtd'),anotaVal:n('anotaVal'),aiqQtd:n('aiqQtd'),aiqVal:n('aiqVal'),orders:n('anotaQtd')+n('aiqQtd'),value:n('anotaVal')+n('aiqVal')},expenses,obs:$('obs').value.trim(),breads:{idealStart:n('idealStart'),idealProd:n('idealProd'),idealOut:0,idealFinal:n('idealStart')+n('idealProd'),gourmetStart:n('gourmetStart'),gourmetProd:n('gourmetProd'),gourmetOut:0,gourmetFinal:n('gourmetStart')+n('gourmetProd')},savedAt:new Date().toISOString()}
+  return{date:recordDate,resp:$('resp').value.trim(),opening:n('opening'),cash:n('cash'),cardOut:n('cardOut'),onlinePayment:n('online'),deliveryCard:n('deliveryCard'),cashOut:n('cashOut'),countedCash:n('countedCash'),expectedCash,cashDifference,paymentTotal,paymentDifference:paymentTotal-sales,sales,orders,expense,result,balance:result,channels:channels.map((name,i)=>({name,q:q[i],v:v[i]})),online:{anotaQtd:n('anotaQtd'),anotaVal:n('anotaVal'),aiqQtd:n('aiqQtd'),aiqVal:n('aiqVal'),orders:n('anotaQtd')+n('aiqQtd'),value:n('anotaVal')+n('aiqVal')},expenses,obs:$('obs').value.trim(),breads:{idealStart:n('idealStart'),idealProd:n('idealProd'),idealOut:0,idealFinal:n('idealStart')-n('idealProd'),gourmetStart:n('gourmetStart'),gourmetProd:n('gourmetProd'),gourmetOut:0,gourmetFinal:n('gourmetStart')-n('gourmetProd')},savedAt:new Date().toISOString()}
 }
 
 function monthRecords(ym){return load().filter(r=>(r.date||'').startsWith(ym))}
@@ -38,8 +38,8 @@ function normalize(r){
   if(!r.breads)r.breads={};
   if(r.breads.idealOut===undefined)r.breads.idealOut=0;
   if(r.breads.gourmetOut===undefined)r.breads.gourmetOut=0;
-  if(r.breads.idealFinal===undefined)r.breads.idealFinal=Number(r.breads.idealStart||0)+Number(r.breads.idealProd||0)-Number(r.breads.idealOut||0);
-  if(r.breads.gourmetFinal===undefined)r.breads.gourmetFinal=Number(r.breads.gourmetStart||0)+Number(r.breads.gourmetProd||0)-Number(r.breads.gourmetOut||0);
+  if(r.breads.idealFinal===undefined)r.breads.idealFinal=Number(r.breads.idealStart||0)-Number(r.breads.idealProd||0);
+  if(r.breads.gourmetFinal===undefined)r.breads.gourmetFinal=Number(r.breads.gourmetStart||0)-Number(r.breads.gourmetProd||0);
   return r;
 }
 

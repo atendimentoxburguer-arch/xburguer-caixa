@@ -30,7 +30,7 @@
     ensureResult(gourmetRow,'gourmetMonth','Acum. mês');
 
     const note=panel?.querySelector('.bread-note');
-    if(note)note.textContent='Estoque final = estoque inicial + produção. O acumulado mensal soma as produções registradas no mês.';
+    if(note)note.textContent='Estoque final = estoque inicial − produção. O acumulado mensal soma as produções registradas no mês.';
     return true;
   }
 
@@ -42,10 +42,12 @@
     const idealProducedBefore=prior.reduce((sum,r)=>sum+Number(r.breads?.idealProd||0),0);
     const gourmetProducedBefore=prior.reduce((sum,r)=>sum+Number(r.breads?.gourmetProd||0),0);
 
-    const idealFinal=qty('idealStart')+qty('idealProd');
-    const gourmetFinal=qty('gourmetStart')+qty('gourmetProd');
+    const idealFinal=qty('idealStart')-qty('idealProd');
+    const gourmetFinal=qty('gourmetStart')-qty('gourmetProd');
     byId('idealFinal').textContent=idealFinal;
     byId('gourmetFinal').textContent=gourmetFinal;
+    byId('idealFinal').parentElement?.classList.toggle('negative-stock',idealFinal<0);
+    byId('gourmetFinal').parentElement?.classList.toggle('negative-stock',gourmetFinal<0);
     byId('idealMonth').textContent=idealProducedBefore+qty('idealProd');
     byId('gourmetMonth').textContent=gourmetProducedBefore+qty('gourmetProd');
   }
@@ -71,8 +73,8 @@
         if(head)head.innerHTML='<th>Tipo</th><th>Est. inicial</th><th>Produção</th><th>Est. final</th>';
         if(record){
           const b=record.breads||{};
-          const idealFinal=Number.isFinite(Number(b.idealFinal))?Number(b.idealFinal):Number(b.idealStart||0)+Number(b.idealProd||0);
-          const gourmetFinal=Number.isFinite(Number(b.gourmetFinal))?Number(b.gourmetFinal):Number(b.gourmetStart||0)+Number(b.gourmetProd||0);
+          const idealFinal=Number.isFinite(Number(b.idealFinal))?Number(b.idealFinal):Number(b.idealStart||0)-Number(b.idealProd||0);
+          const gourmetFinal=Number.isFinite(Number(b.gourmetFinal))?Number(b.gourmetFinal):Number(b.gourmetStart||0)-Number(b.gourmetProd||0);
           tbody.innerHTML=`<tr><td>Pão Ideal</td><td>${Number(b.idealStart||0)}</td><td>${Number(b.idealProd||0)}</td><td>${idealFinal}</td></tr><tr><td>Pão Gourmet</td><td>${Number(b.gourmetStart||0)}</td><td>${Number(b.gourmetProd||0)}</td><td>${gourmetFinal}</td></tr>`;
         }
       }
@@ -92,8 +94,8 @@
         if(head)head.innerHTML='<th>Tipo</th><th>Produção acumulada</th><th>Último est. final</th>';
         const sum=fn=>month.reduce((total,r)=>total+Number(fn(r)||0),0);
         const last=month.at(-1);
-        const idealFinal=last?Number(last.breads?.idealFinal??(Number(last.breads?.idealStart||0)+Number(last.breads?.idealProd||0))):0;
-        const gourmetFinal=last?Number(last.breads?.gourmetFinal??(Number(last.breads?.gourmetStart||0)+Number(last.breads?.gourmetProd||0))):0;
+        const idealFinal=last?Number(last.breads?.idealFinal??(Number(last.breads?.idealStart||0)-Number(last.breads?.idealProd||0))):0;
+        const gourmetFinal=last?Number(last.breads?.gourmetFinal??(Number(last.breads?.gourmetStart||0)-Number(last.breads?.gourmetProd||0))):0;
         tbody.innerHTML=`<tr><td>Pão Ideal</td><td>${sum(r=>r.breads?.idealProd)}</td><td>${idealFinal}</td></tr><tr><td>Pão Gourmet</td><td>${sum(r=>r.breads?.gourmetProd)}</td><td>${gourmetFinal}</td></tr>`;
       }
       return result;

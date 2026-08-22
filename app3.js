@@ -6,6 +6,8 @@ function validateRecord(rec){
   const values=[rec.opening,rec.cash,rec.cardOut,rec.onlinePayment,rec.deliveryCard,rec.cashOut,rec.countedCash,...rec.channels.map(c=>c.v),rec.online.anotaVal,rec.online.aiqVal,...rec.expenses.map(e=>e.val)];
   if(values.some(v=>!Number.isFinite(v)||v<0))return'Os valores financeiros não podem ser negativos.';
   if(rec.expenses.some(e=>e.val>0&&!e.d))return'Informe a descrição de toda despesa que possui valor.';
+  if(rec.breads.idealFinal<0)return'A produção de Pão Ideal não pode ser maior que o estoque inicial.';
+  if(rec.breads.gourmetFinal<0)return'A produção de Pão Gourmet não pode ser maior que o estoque inicial.';
   return true;
 }
 
