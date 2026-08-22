@@ -41,28 +41,31 @@
     try{return channels.reduce((total,_,i)=>total+num('v'+i),0)}catch{return 0}
   }
   function paymentNow(){return num('cash')+num('cardOut')+num('online')+num('deliveryCard');}
+  function summaryBlockTotalNow(){return num('opening')+paymentNow();}
 
-  /* O Resumo financeiro e Vendas por canal são conferências independentes.
-     O total do resumo soma apenas as formas de pagamento informadas no bloco 1.
-     O total de canais continua sendo calculado exclusivamente pelos lançamentos do bloco 2. */
+  /* O Resumo financeiro e Vendas por canal são totais independentes.
+     O Total de Vendas Geral visual soma todos os valores positivos do bloco 1:
+     saldo inicial + dinheiro + cartões + Pix/apps. Despesas e retiradas ficam fora.
+     O total de canais continua sendo calculado exclusivamente pelo bloco 2. */
   function summaryMonthToDate(){
     const selectedDate=document.getElementById('date')?.value||((typeof isoToday==='function')?isoToday():'');
-    if(!selectedDate)return paymentNow();
+    if(!selectedDate)return summaryBlockTotalNow();
     const ym=selectedDate.slice(0,7);
     let previous=0;
     try{
       const prior=monthRecords(ym).map(normalize).filter(r=>String(r.date||'')<selectedDate);
       previous=prior.reduce((total,r)=>total+
+        Number(r.opening||0)+
         Number(r.cash||0)+
         Number(r.cardOut||0)+
         Number(r.onlinePayment||0)+
         Number(r.deliveryCard||0),0);
     }catch{}
-    return previous+paymentNow();
+    return previous+summaryBlockTotalNow();
   }
 
   function updateSeparatedSalesTotals(){
-    setText(document.getElementById('daySales'),money(paymentNow()));
+    setText(document.getElementById('daySales'),money(summaryBlockTotalNow()));
     setText(document.getElementById('aSales'),money(summaryMonthToDate()));
   }
 
@@ -105,7 +108,7 @@
         : 'Atenção: faltam '+brl.format(Math.abs(diff))+' nas formas de pagamento');
     }
 
-    setText(detail,'Vendas por canal: '+brl.format(sales)+' • Resumo financeiro: '+brl.format(payments)+' • Dinheiro previsto após retiradas: '+brl.format(expected));
+    setText(detail,'Vendas por canal: '+brl.format(sales)+' • Formas de pagamento: '+brl.format(payments)+' • Dinheiro previsto após retiradas: '+brl.format(expected));
   }
 
   function updatePhysicalCheck(){
@@ -157,13 +160,13 @@
 
     setLabel('countedCash','Contagem física da gaveta — opcional');
     setLabel('paymentTotal','Pagamentos informados — automático');
-    setLabel('paymentDiff','Diferença resumo financeiro × vendas por canal — automático');
+    setLabel('paymentDiff','Diferença formas de pagamento × vendas por canal — automático');
     setLabel('cashDiff','Diferença física — somente se contar a gaveta');
     setLabel('dayBalance','Resultado do dia — automático');
 
     addHelp('countedCash','Preencha apenas se quiser comparar o dinheiro real da gaveta com o valor previsto pelo sistema.');
-    addHelp('paymentTotal','Calculado automaticamente somando dinheiro, cartões e Pix/apps informados no Resumo financeiro.');
-    addHelp('paymentDiff','R$ 0,00 significa que o total do Resumo financeiro bate com o total de Vendas por canal.');
+    addHelp('paymentTotal','Calculado automaticamente somando dinheiro, cartões e Pix/apps. O saldo inicial não entra nessa conferência.');
+    addHelp('paymentDiff','R$ 0,00 significa que as formas de pagamento batem com o total de Vendas por canal.');
     const cashItem=addHelp('cashDiff','Essa verificação é opcional. Sem contagem física, o fechamento financeiro continua funcionando normalmente.');
     addHelp('dayBalance','Calculado automaticamente: total de vendas por canal − despesas registradas no dia.');
 
