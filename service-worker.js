@@ -59,7 +59,6 @@ const PRECACHE = [
   "./icons/xburguer-caixa-rounded-32-v3.png",
   "./icons/xburguer-caixa-rounded-48-v3.png",
   "./icons/xburguer-caixa-rounded-192-v3.png",
-  "./icons/xburguer-caixa-rounded-512-v4.png",
   "./icons/xburguer-caixa-maskable-512-v4150.png"
 ];
 
