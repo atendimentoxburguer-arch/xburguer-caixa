@@ -44,21 +44,34 @@ jobs:
           if manifest.get('prefer_related_applications') is not False:
               errors.append('Manifest deve preferir a instalação web nativa.')
 
-          required_icons = {
-              './icons/xburguer-caixa-192-v4150.png',
-              './icons/xburguer-caixa-512-v4150.png',
-              './icons/xburguer-caixa-maskable-512-v4150.png'
-          }
           manifest_icons = {str(icon.get('src','')) for icon in manifest.get('icons', [])}
-          if not required_icons.issubset(manifest_icons):
-              errors.append('Manifest não contém os ícones obrigatórios do Caixa.')
-          for rel in [p[2:] for p in required_icons]:
-              if not (root/rel).exists():
-                  errors.append(f'Ícone obrigatório ausente: {rel}')
+          if './icons/xburguer-caixa-rounded-v1.svg' not in manifest_icons:
+              errors.append('Manifest não usa o ícone arredondado oficial do Caixa.')
+          if './icons/xburguer-caixa-maskable-512-v4150.png' not in manifest_icons:
+              errors.append('Manifest perdeu o ícone maskable do Caixa.')
+
+          required_icon_files = [
+              root/'icons/xburguer-caixa-rounded-v1.svg',
+              root/'icons/xburguer-caixa-512-v4150.png',
+              root/'icons/xburguer-caixa-maskable-512-v4150.png'
+          ]
+          for icon_path in required_icon_files:
+              if not icon_path.exists():
+                  errors.append(f'Ícone obrigatório ausente: {icon_path}')
+
+          rounded = (root/'icons/xburguer-caixa-rounded-v1.svg').read_text(encoding='utf-8')
+          if 'href="./xburguer-caixa-512-v4150.png"' not in rounded:
+              errors.append('Ícone arredondado não preserva o PNG original do Caixa.')
+          if 'rx="112"' not in rounded or 'clip-path="url(#rounded-app-icon)"' not in rounded:
+              errors.append('Máscara arredondada oficial do ícone foi alterada.')
 
           index = (root/'index.html').read_text(encoding='utf-8')
-          if '/xburguer-caixa/service-worker.js?v=native-1' not in index:
-              errors.append('Bootstrap não registra o Service Worker nativo.')
+          if '/xburguer-caixa/service-worker.js?v=rounded-1' not in index:
+              errors.append('Bootstrap não registra o Service Worker do ícone arredondado.')
+          if 'manifest.webmanifest?v=pwa-caixa-rounded-1' not in index:
+              errors.append('Bootstrap não aponta para o manifesto com ícone arredondado.')
+          if 'xburguer-caixa-rounded-v1.svg' not in index:
+              errors.append('Bootstrap não usa o favicon arredondado do Caixa.')
           if "scope:'/xburguer-caixa/'" not in index:
               errors.append('Bootstrap não limita o Service Worker ao Caixa.')
           if "location.replace('/xburguer-caixa/caixa.html?app=caixa')" not in index:
@@ -67,8 +80,10 @@ jobs:
               errors.append('Bootstrap não deve interceptar o instalador nativo do Chrome.')
 
           caixa = (root/'caixa.html').read_text(encoding='utf-8')
-          if 'manifest.webmanifest?v=pwa-caixa-native-1' not in caixa:
-              errors.append('Tela do Caixa não aponta para o manifesto nativo.')
+          if 'manifest.webmanifest?v=pwa-caixa-rounded-1' not in caixa:
+              errors.append('Tela do Caixa não aponta para o manifesto arredondado.')
+          if 'xburguer-caixa-rounded-v1.svg' not in caixa:
+              errors.append('Tela do Caixa não usa o favicon arredondado.')
           if 'install-helper.js' in caixa or 'pwa.js' in caixa:
               errors.append('Tela do Caixa ainda carrega camadas antigas de instalação.')
           if caixa.find('identity-guard.js') > caixa.find('@supabase/supabase-js'):
@@ -89,18 +104,20 @@ jobs:
                   errors.append(f'Tela do Caixa não carrega {name} na versão {app_version}.')
 
           sw = (root/'service-worker.js').read_text(encoding='utf-8')
-          if 'const CACHE_NAME = "xburguer-caixa-native-v1";' not in sw:
-              errors.append('Cache nativo do Caixa não está ativo.')
+          if 'const CACHE_NAME = "xburguer-caixa-rounded-v1";' not in sw:
+              errors.append('Cache do ícone arredondado do Caixa não está ativo.')
           if 'const APP_PATH = "/xburguer-caixa/";' not in sw:
               errors.append('Service Worker perdeu o caminho exclusivo do Caixa.')
           if '"./caixa.html"' not in sw:
               errors.append('Service Worker não inclui a tela principal do Caixa.')
+          if '"./icons/xburguer-caixa-rounded-v1.svg"' not in sw:
+              errors.append('Service Worker não inclui o ícone arredondado.')
           if 'caches.match(' in sw:
               errors.append('Service Worker usa busca global de cache da origem.')
 
           legacy = (root/'sw.js').read_text(encoding='utf-8')
-          if "service-worker.js?v=native-1" not in legacy:
-              errors.append('Service Worker legado não aponta para o PWA nativo.')
+          if "service-worker.js?v=rounded-1" not in legacy:
+              errors.append('Service Worker legado não aponta para a versão arredondada.')
 
           identity = (root/'identity-guard.js').read_text(encoding='utf-8')
           if "EXPECTED_PATH='/xburguer-caixa/'" not in identity:
@@ -168,5 +185,5 @@ jobs:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
 
-          print(f'OK: X-Burguer Caixa {app_version} validado com PWA nativo, isolamento e proteções funcionais.')
+          print(f'OK: X-Burguer Caixa {app_version} validado com ícone arredondado, isolamento e proteções funcionais.')
           PY

@@ -15,21 +15,9 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "./icons/apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./icons/xburguer-caixa-192-v4150.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./icons/xburguer-caixa-512-v4150.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "./icons/xburguer-caixa-rounded-v1.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any"
     },
     {
@@ -46,9 +34,9 @@
       "url": "./caixa.html?app=caixa",
       "icons": [
         {
-          "src": "./icons/xburguer-caixa-192-v4150.png",
-          "sizes": "192x192",
-          "type": "image/png"
+          "src": "./icons/xburguer-caixa-rounded-v1.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
         }
       ]
     }

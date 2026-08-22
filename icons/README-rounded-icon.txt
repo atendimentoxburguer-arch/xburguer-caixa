@@ -1,0 +1,1 @@
+O ícone xburguer-caixa-rounded-v1.svg usa exatamente o PNG xburguer-caixa-512-v4150.png como imagem interna e apenas recorta os quatro cantos com uma máscara arredondada. Nenhuma cor, logo ou detalhe interno é alterado.

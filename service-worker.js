@@ -1,11 +1,11 @@
-const CACHE_NAME = "xburguer-caixa-native-v1";
+const CACHE_NAME = "xburguer-caixa-rounded-v1";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
   "./",
   "./index.html",
   "./caixa.html",
   "./manifest.webmanifest",
-  "./icons/apple-touch-icon.png",
+  "./icons/xburguer-caixa-rounded-v1.svg",
   "./icons/xburguer-caixa-192-v4150.png",
   "./icons/xburguer-caixa-512-v4150.png",
   "./icons/xburguer-caixa-maskable-512-v4150.png"
