@@ -1,0 +1,135 @@
+name: Gerar ícone arredondado do Caixa
+
+on:
+  push:
+    branches: [fix/rounded-caixa-icon]
+
+permissions:
+  contents: write
+
+jobs:
+  gerar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/rounded-caixa-icon
+
+      - name: Preparar Pillow
+        run: python -m pip install --quiet pillow
+
+      - name: Gerar ícones e atualizar PWA
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageDraw, ImageChops
+          import json, shutil
+
+          root = Path('.')
+          icons = root / 'icons'
+          source = icons / 'xburguer-caixa-512-v4150.png'
+          if not source.exists():
+              raise SystemExit('Ícone fonte do Caixa não encontrado.')
+
+          def make_rounded(output_name, size):
+              img = Image.open(source).convert('RGBA')
+              if img.size != (size, size):
+                  img = img.resize((size, size), Image.Resampling.LANCZOS)
+              radius = round(size * 0.22)
+              mask = Image.new('L', (size, size), 0)
+              draw = ImageDraw.Draw(mask)
+              draw.rounded_rectangle((0, 0, size - 1, size - 1), radius=radius, fill=255)
+              alpha = img.getchannel('A')
+              img.putalpha(ImageChops.multiply(alpha, mask))
+              img.save(icons / output_name, 'PNG', optimize=True)
+
+          make_rounded('xburguer-caixa-rounded-32-v1.png', 32)
+          make_rounded('xburguer-caixa-rounded-48-v1.png', 48)
+          make_rounded('xburguer-caixa-rounded-180-v1.png', 180)
+          make_rounded('xburguer-caixa-rounded-192-v1.png', 192)
+          make_rounded('xburguer-caixa-rounded-512-v1.png', 512)
+
+          maskable_src = icons / 'xburguer-caixa-maskable-512-v4150.png'
+          maskable_dst = icons / 'xburguer-caixa-maskable-512-rounded-v1.png'
+          if maskable_src.exists():
+              shutil.copyfile(maskable_src, maskable_dst)
+          else:
+              shutil.copyfile(source, maskable_dst)
+
+          manifest_path = root / 'manifest.webmanifest'
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          manifest['icons'] = [
+              {'src':'./icons/xburguer-caixa-rounded-180-v1.png','sizes':'180x180','type':'image/png','purpose':'any'},
+              {'src':'./icons/xburguer-caixa-rounded-192-v1.png','sizes':'192x192','type':'image/png','purpose':'any'},
+              {'src':'./icons/xburguer-caixa-rounded-512-v1.png','sizes':'512x512','type':'image/png','purpose':'any'},
+              {'src':'./icons/xburguer-caixa-maskable-512-rounded-v1.png','sizes':'512x512','type':'image/png','purpose':'maskable'}
+          ]
+          for shortcut in manifest.get('shortcuts', []):
+              shortcut['icons'] = [{'src':'./icons/xburguer-caixa-rounded-192-v1.png','sizes':'192x192','type':'image/png'}]
+          manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          def replace(path, pairs):
+              p = root / path
+              text = p.read_text(encoding='utf-8')
+              for old, new in pairs:
+                  text = text.replace(old, new)
+              p.write_text(text, encoding='utf-8')
+
+          replace('index.html', [
+              ('manifest.webmanifest?v=pwa-caixa-native-1', 'manifest.webmanifest?v=pwa-caixa-rounded-1'),
+              ('icons/apple-touch-icon.png?v=pwa-caixa-native-1', 'icons/xburguer-caixa-rounded-180-v1.png?v=pwa-caixa-rounded-1'),
+              ('icons/xburguer-caixa-192-v4150.png?v=pwa-caixa-native-1', 'icons/xburguer-caixa-rounded-192-v1.png?v=pwa-caixa-rounded-1'),
+              ('/xburguer-caixa/service-worker.js?v=native-1', '/xburguer-caixa/service-worker.js?v=rounded-1')
+          ])
+
+          replace('caixa.html', [
+              ('manifest.webmanifest?v=pwa-caixa-native-1', 'manifest.webmanifest?v=pwa-caixa-rounded-1'),
+              ('/xburguer-caixa/icons/xburguer-caixa-512-v4150.png', '/xburguer-caixa/icons/xburguer-caixa-rounded-512-v1.png'),
+              ('icons/xburguer-caixa-32-v4152.png?v=pwa-caixa-native-1', 'icons/xburguer-caixa-rounded-32-v1.png?v=pwa-caixa-rounded-1'),
+              ('icons/xburguer-caixa-48-v4152.png?v=pwa-caixa-native-1', 'icons/xburguer-caixa-rounded-48-v1.png?v=pwa-caixa-rounded-1'),
+              ('icons/xburguer-caixa-192-v4150.png?v=pwa-caixa-native-1', 'icons/xburguer-caixa-rounded-192-v1.png?v=pwa-caixa-rounded-1'),
+              ('icons/apple-touch-icon.png?v=pwa-caixa-native-1', 'icons/xburguer-caixa-rounded-180-v1.png?v=pwa-caixa-rounded-1')
+          ])
+
+          replace('service-worker.js', [
+              ('const CACHE_NAME = "xburguer-caixa-native-v1";', 'const CACHE_NAME = "xburguer-caixa-rounded-v1";'),
+              ('"./icons/apple-touch-icon.png"', '"./icons/xburguer-caixa-rounded-180-v1.png"'),
+              ('"./icons/xburguer-caixa-192-v4150.png"', '"./icons/xburguer-caixa-rounded-192-v1.png"'),
+              ('"./icons/xburguer-caixa-512-v4150.png"', '"./icons/xburguer-caixa-rounded-512-v1.png"'),
+              ('"./icons/xburguer-caixa-maskable-512-v4150.png"', '"./icons/xburguer-caixa-maskable-512-rounded-v1.png"')
+          ])
+
+          replace('sw.js', [
+              ('service-worker.js?v=native-1', 'service-worker.js?v=rounded-1')
+          ])
+
+          replace('.github/workflows/validar-isolamento.yml', [
+              ('./icons/xburguer-caixa-192-v4150.png', './icons/xburguer-caixa-rounded-192-v1.png'),
+              ('./icons/xburguer-caixa-512-v4150.png', './icons/xburguer-caixa-rounded-512-v1.png'),
+              ('./icons/xburguer-caixa-maskable-512-v4150.png', './icons/xburguer-caixa-maskable-512-rounded-v1.png'),
+              ('/xburguer-caixa/service-worker.js?v=native-1', '/xburguer-caixa/service-worker.js?v=rounded-1'),
+              ('manifest.webmanifest?v=pwa-caixa-native-1', 'manifest.webmanifest?v=pwa-caixa-rounded-1'),
+              ('const CACHE_NAME = "xburguer-caixa-native-v1";', 'const CACHE_NAME = "xburguer-caixa-rounded-v1";'),
+              ('service-worker.js?v=native-1', 'service-worker.js?v=rounded-1')
+          ])
+          PY
+
+      - name: Confirmar ícone arredondado
+        run: |
+          python - <<'PY'
+          from PIL import Image
+          for name in ['xburguer-caixa-rounded-192-v1.png','xburguer-caixa-rounded-512-v1.png']:
+              img=Image.open('icons/'+name).convert('RGBA')
+              assert img.getpixel((0,0))[3] == 0, f'{name}: canto ainda opaco'
+              assert img.getpixel((img.width//2,img.height//2))[3] > 0, f'{name}: centro transparente'
+          print('OK: arte preservada e apenas os cantos foram arredondados.')
+          PY
+
+      - name: Salvar resultado na branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/generate-rounded-caixa-icon.yml
+          git add icons manifest.webmanifest index.html caixa.html service-worker.js sw.js .github/workflows/validar-isolamento.yml
+          git commit -m "Arredondar ícone do app Caixa sem alterar a arte"
+          git push origin HEAD:fix/rounded-caixa-icon
