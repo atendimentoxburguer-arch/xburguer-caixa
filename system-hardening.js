@@ -1,5 +1,5 @@
-/* X-Burguer Caixa — estabilidade funcional consolidada v4.18.0 */
-const XB_APP_VERSION='4.18.0';
+/* X-Burguer Caixa — estabilidade funcional consolidada v4.18.2 */
+const XB_APP_VERSION='4.18.2';
 window.XB_APP_VERSION=XB_APP_VERSION;
 let xbAuthRefreshPromise=null;
 

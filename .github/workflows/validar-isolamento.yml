@@ -127,6 +127,8 @@ jobs:
               errors.append('Conferência automática perdeu os avisos de salvamento.')
 
           hardening = (root/'system-hardening.js').read_text(encoding='utf-8')
+          if f"const XB_APP_VERSION='{app_version}';" not in hardening:
+              errors.append('Módulo de estabilidade está com versão interna diferente do sistema.')
           if 'pageSize=500' not in hardening:
               errors.append('Carregamento paginado do histórico não foi encontrado.')
           if 'xbIsNetworkError' not in hardening:
