@@ -22,16 +22,16 @@ jobs:
             node --check "$file"
           done
 
-      - name: Validar PWA nativo, isolamento e sistema
+      - name: Validar PWA, isolamento, dados e sistema
         run: |
           python - <<'PY'
           from pathlib import Path
-          import json, sys, struct
+          import json, re, struct, sys
 
           root = Path('.')
           errors = []
           app_version = '4.18.2'
-          pwa_revision = 'native-3'
+          pwa_revision = 'native-4'
 
           def png_info(path):
               data = path.read_bytes()
@@ -63,8 +63,10 @@ jobs:
               path = root / src.removeprefix('./')
               if not path.exists():
                   errors.append(f'Ícone obrigatório ausente: {path}')
-              elif png_info(path) is None or png_info(path)[:2] != expected_size:
-                  errors.append(f'Ícone PNG inválido ou com tamanho incorreto: {path}')
+              else:
+                  info = png_info(path)
+                  if info is None or info[:2] != expected_size:
+                      errors.append(f'Ícone PNG inválido ou com tamanho incorreto: {path}')
 
           rounded_files = {
               root/'icons/xburguer-caixa-rounded-32-v3.png': (32, 32),
@@ -80,33 +82,76 @@ jobs:
                       errors.append(f'PNG arredondado inválido: {path}')
 
           index = (root/'index.html').read_text(encoding='utf-8')
-          if f'/xburguer-caixa/service-worker.js?v={pwa_revision}' not in index:
-              errors.append('Bootstrap não registra o Service Worker PNG atual.')
-          if 'manifest.webmanifest?v=pwa-caixa-native-3' not in index:
-              errors.append('Bootstrap não aponta para o manifesto PNG atual.')
+          caixa = (root/'caixa.html').read_text(encoding='utf-8')
+          pwa_register = (root/'pwa-register.js').read_text(encoding='utf-8')
+          sw = (root/'service-worker.js').read_text(encoding='utf-8')
+          legacy = (root/'sw.js').read_text(encoding='utf-8')
+
+          if 'pwa-register.js?v=4.18.2-pwa4' not in index:
+              errors.append('Bootstrap não carrega o registrador compartilhado do PWA.')
+          if "REVISION='native-4'" not in pwa_register:
+              errors.append('Registrador do PWA não aponta para a revisão native-4.')
+          if "SCOPE='/xburguer-caixa/'" not in pwa_register:
+              errors.append('Registrador do PWA perdeu o escopo exclusivo do Caixa.')
+          if "SCRIPT_PATH=SCOPE+'service-worker.js'" not in pwa_register:
+              errors.append('Registrador do PWA não aponta para o Service Worker oficial.')
+          if 'manifest.webmanifest?v=pwa-caixa-native-4' not in index:
+              errors.append('Bootstrap não aponta para o manifesto native-4.')
           if 'xburguer-caixa-rounded-192-v3.png' not in index:
               errors.append('Bootstrap não usa o PNG arredondado do Caixa.')
-          if 'xburguer-caixa-rounded-v1.svg' in index:
-              errors.append('Bootstrap ainda referencia o SVG incompatível com Windows.')
-          if "scope:'/xburguer-caixa/'" not in index:
-              errors.append('Bootstrap não limita o Service Worker ao Caixa.')
           if "location.replace('/xburguer-caixa/caixa.html?app=caixa')" not in index:
-              errors.append('Bootstrap não abre a tela oficial após preparar o PWA.')
+              errors.append('Bootstrap não abre a tela oficial do Caixa.')
           if 'beforeinstallprompt' in index:
-              errors.append('Bootstrap não deve interceptar o instalador nativo do Chrome.')
+              errors.append('Bootstrap não deve interceptar o instalador nativo do navegador.')
 
-          caixa = (root/'caixa.html').read_text(encoding='utf-8')
-          if 'manifest.webmanifest?v=pwa-caixa-native-3' not in caixa:
-              errors.append('Tela do Caixa não aponta para o manifesto PNG atual.')
+          if 'manifest.webmanifest?v=pwa-caixa-native-4' not in caixa:
+              errors.append('Tela do Caixa não aponta para o manifesto native-4.')
+          if 'pwa-register.js?v=4.18.2-pwa4' not in caixa:
+              errors.append('Tela principal não registra o PWA quando aberta diretamente.')
           for name in ('xburguer-caixa-rounded-32-v3.png', 'xburguer-caixa-rounded-48-v3.png', 'xburguer-caixa-rounded-192-v3.png'):
               if name not in caixa:
                   errors.append(f'Tela do Caixa não carrega {name}.')
-          if 'xburguer-caixa-rounded-v1.svg' in caixa:
-              errors.append('Tela do Caixa ainda referencia o SVG incompatível com Windows.')
           if 'install-helper.js' in caixa or 'pwa.js' in caixa:
               errors.append('Tela do Caixa ainda carrega camadas antigas de instalação.')
           if caixa.find('identity-guard.js') > caixa.find('@supabase/supabase-js'):
               errors.append('Trava de identidade precisa carregar antes do Supabase.')
+          if caixa.find('system-hardening.js') > caixa.find('data-consistency.js'):
+              errors.append('Normalização de dados deve carregar após o hardening.')
+          if caixa.find('data-consistency.js') > caixa.find('app5.js'):
+              errors.append('Normalização de dados deve carregar antes da inicialização principal.')
+
+          # Toda referência local do HTML principal deve existir e estar disponível no cache offline.
+          local_refs = set()
+          for ref in re.findall(r'(?:src|href)="([^"]+)"', caixa):
+              if ref.startswith(('http://','https://','data:','#')):
+                  continue
+              clean = ref.split('?',1)[0].lstrip('./')
+              if not clean:
+                  continue
+              local_refs.add(clean)
+              if not (root/clean).exists():
+                  errors.append(f'Recurso referenciado por caixa.html não existe: {clean}')
+
+          if 'const CACHE_NAME = "xburguer-caixa-native-v4";' not in sw:
+              errors.append('Cache native-v4 do Caixa não está ativo.')
+          if 'const APP_PATH = "/xburguer-caixa/";' not in sw:
+              errors.append('Service Worker perdeu o caminho exclusivo do Caixa.')
+          if '"./caixa.html"' not in sw:
+              errors.append('Service Worker não inclui a tela principal do Caixa.')
+          for required in ('pwa-register.js','bread-summary.css','online-orders-equal.css','data-consistency.js'):
+              if f'"./{required}"' not in sw:
+                  errors.append(f'Service Worker não pré-carrega {required}.')
+          for ref in sorted(local_refs):
+              if ref == 'manifest.webmanifest':
+                  token='"./manifest.webmanifest"'
+              else:
+                  token=f'"./{ref}"'
+              if token not in sw:
+                  errors.append(f'Recurso local não está no precache offline: {ref}')
+          if 'caches.match(' in sw:
+              errors.append('Service Worker usa busca global de cache da origem.')
+          if "service-worker.js?v=native-4" not in legacy:
+              errors.append('Service Worker legado não aponta para a revisão native-4.')
 
           versioned_assets = [
               'style1.css', 'style2.css', 'style3.css', 'style4.css', 'style5.css',
@@ -115,31 +160,13 @@ jobs:
               'login-transitions.css', 'system-final.css', 'cash-conference-help.css',
               'version.css', 'identity-guard.js', 'storage-namespace.js',
               'app1.js', 'app2.js', 'app3.js', 'app4.js', 'system-hardening.js',
-              'app5.js', 'system-guard.js', 'realtime.js', 'mobile-menu-fix.js',
-              'currency-format.js', 'automatic-conference.js', 'cash-conference-help.js'
+              'data-consistency.js', 'app5.js', 'system-guard.js', 'realtime.js',
+              'mobile-menu-fix.js', 'currency-format.js', 'automatic-conference.js',
+              'bread-summary.js', 'cash-conference-help.js'
           ]
           for name in versioned_assets:
               if f'{name}?v={app_version}' not in caixa:
-                  errors.append(f'Tela do Caixa não carrega {name} na versão {app_version}.')
-
-          sw = (root/'service-worker.js').read_text(encoding='utf-8')
-          if 'const CACHE_NAME = "xburguer-caixa-native-v3";' not in sw:
-              errors.append('Cache PNG atual do Caixa não está ativo.')
-          if 'const APP_PATH = "/xburguer-caixa/";' not in sw:
-              errors.append('Service Worker perdeu o caminho exclusivo do Caixa.')
-          if '"./caixa.html"' not in sw:
-              errors.append('Service Worker não inclui a tela principal do Caixa.')
-          for name in ('xburguer-caixa-rounded-32-v3.png', 'xburguer-caixa-rounded-48-v3.png', 'xburguer-caixa-rounded-192-v3.png'):
-              if name not in sw:
-                  errors.append(f'Service Worker não inclui {name}.')
-          if 'xburguer-caixa-rounded-v1.svg' in sw:
-              errors.append('Service Worker ainda mantém o SVG incompatível no cache.')
-          if 'caches.match(' in sw:
-              errors.append('Service Worker usa busca global de cache da origem.')
-
-          legacy = (root/'sw.js').read_text(encoding='utf-8')
-          if "service-worker.js?v=native-3" not in legacy:
-              errors.append('Service Worker legado não aponta para a revisão PNG atual.')
+                  errors.append(f'Tela do Caixa não carrega {name} com cache-busting da versão {app_version}.')
 
           identity = (root/'identity-guard.js').read_text(encoding='utf-8')
           if "EXPECTED_PATH='/xburguer-caixa/'" not in identity:
@@ -174,6 +201,22 @@ jobs:
               errors.append('Proteção de sessão contra falha de internet não foi encontrada.')
           if 'validateBackupRecords=function' not in hardening:
               errors.append('Validação completa de backup não foi encontrada.')
+          if "Number(rec.cash||0)-Number(rec.cashOut||0)" not in hardening:
+              errors.append('Regra oficial da conferência física não foi encontrada.')
+
+          consistency = (root/'data-consistency.js').read_text(encoding='utf-8')
+          if "breads.idealFinal=Number(breads.idealStart||0)-Number(breads.idealProd||0)" not in consistency:
+              errors.append('Normalização do estoque final do Pão Ideal não segue Inicial - Produção.')
+          if "breads.gourmetFinal=Number(breads.gourmetStart||0)-Number(breads.gourmetProd||0)" not in consistency:
+              errors.append('Normalização do estoque final do Pão Gourmet não segue Inicial - Produção.')
+
+          bread_summary = (root/'bread-summary.js').read_text(encoding='utf-8')
+          if "qty('idealStart')-qty('idealProd')" not in bread_summary or "qty('gourmetStart')-qty('gourmetProd')" not in bread_summary:
+              errors.append('Resumo visual dos pães não segue Inicial - Produção.')
+
+          online_css = (root/'online-orders-equal.css').read_text(encoding='utf-8')
+          if 'minmax(0,1fr) minmax(0,1fr)' not in online_css:
+              errors.append('Campos de quantidade e valor dos pedidos online deixaram de ter larguras iguais.')
 
           app5 = (root/'app5.js').read_text(encoding='utf-8')
           if 'rpc/restore_cash_backup' not in app5:
@@ -185,11 +228,18 @@ jobs:
           if 'openConfirmModal' not in app5:
               errors.append('Confirmações internas do sistema não foram encontradas.')
 
+          readme = (root/'README.md').read_text(encoding='utf-8')
+          if 'Versão funcional atual: **4.18.2**' not in readme:
+              errors.append('README está com versão desatualizada.')
+          if '/xburguer-caixa/caixa-oficial' not in readme:
+              errors.append('README está com PWA ID desatualizado.')
+
           runtime_files = [
               root/'index.html', root/'caixa.html', root/'manifest.webmanifest',
-              root/'service-worker.js', root/'sw.js', root/'identity-guard.js',
-              root/'app1.js', root/'app2.js', root/'app3.js', root/'app4.js', root/'app5.js',
-              root/'storage-namespace.js', root/'system-hardening.js',
+              root/'pwa-register.js', root/'service-worker.js', root/'sw.js',
+              root/'identity-guard.js', root/'app1.js', root/'app2.js', root/'app3.js',
+              root/'app4.js', root/'app5.js', root/'storage-namespace.js',
+              root/'system-hardening.js', root/'data-consistency.js',
               root/'automatic-conference.js', root/'realtime.js'
           ]
           forbidden = ['/xburguer-controle/', 'xburguer-consumo-', 'rrslolruacewjijlhpdc']
@@ -207,5 +257,5 @@ jobs:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
 
-          print(f'OK: X-Burguer Caixa {app_version} validado com PNG arredondado compatível, isolamento e proteções funcionais.')
+          print(f'OK: X-Burguer Caixa {app_version} validado com PWA native-4, offline completo, isolamento e regras atuais.')
           PY
