@@ -1,12 +1,14 @@
-/* X-Burguer Caixa — sincronização em tempo real resiliente v4.18.0 */
+/* X-Burguer Caixa — sincronização em tempo real resiliente v4.18.2 */
 let realtimeClient=null;
 let realtimeChannel=null;
 let realtimeUserId=null;
 let realtimeToken=null;
 let realtimeReloadTimer=null;
 let realtimeReconnectTimer=null;
+let realtimeStartPromise=null;
 let realtimeState='idle';
 let realtimeStopping=false;
+let realtimeRetryCount=0;
 
 function realtimeStatus(text,state='online'){
   if(typeof setCloudStatus==='function')setCloudStatus(text,state);
@@ -37,31 +39,43 @@ applyAutomaticSyncUI();
 async function stopRealtimeSync(){
   clearTimeout(realtimeReloadTimer);
   clearTimeout(realtimeReconnectTimer);
+  realtimeReloadTimer=null;
+  realtimeReconnectTimer=null;
   realtimeStopping=true;
-  const client=realtimeClient,channel=realtimeChannel;
+
+  const client=realtimeClient;
+  const channel=realtimeChannel;
   realtimeChannel=null;
   realtimeClient=null;
   realtimeUserId=null;
   realtimeToken=null;
   realtimeState='idle';
+
   if(client&&channel){
     try{await client.removeChannel(channel)}catch{}
   }
   realtimeStopping=false;
 }
 
-function scheduleRealtimeRestart(delay=1800){
-  clearTimeout(realtimeReconnectTimer);
-  if(!authSession?.access_token||!currentUser?.id||!navigator.onLine)return;
+function nextReconnectDelay(){
+  return Math.min(60000,5000*Math.pow(2,Math.min(realtimeRetryCount,4)));
+}
+
+function scheduleRealtimeRestart(delay=null){
+  if(realtimeReconnectTimer||!authSession?.access_token||!currentUser?.id||!navigator.onLine)return;
+  const wait=delay===null?nextReconnectDelay():Math.max(0,delay);
   realtimeReconnectTimer=setTimeout(()=>{
-    startRealtimeSync(true).catch(()=>{});
-  },delay);
+    realtimeReconnectTimer=null;
+    realtimeRetryCount++;
+    startRealtimeSync(true).catch(()=>scheduleRealtimeRestart());
+  },wait);
 }
 
 function scheduleRealtimeReload(){
   clearTimeout(realtimeReloadTimer);
   if(!navigator.onLine)return;
   realtimeReloadTimer=setTimeout(async()=>{
+    realtimeReloadTimer=null;
     if(!authSession?.access_token||!navigator.onLine)return;
     if(saveInProgress||deleteInProgress||manualSyncInProgress){
       scheduleRealtimeReload();
@@ -81,84 +95,105 @@ function scheduleRealtimeReload(){
       realtimeStatus(navigator.onLine?'● Nuvem • reconectando...':'● Sem internet',navigator.onLine?'syncing':'error');
       if(navigator.onLine)scheduleRealtimeRestart();
     }
-  },500);
+  },650);
 }
 
 async function startRealtimeSync(force=false){
-  if(!navigator.onLine){
-    realtimeState='idle';
-    realtimeStatus('● Sem internet','error');
-    const info=document.getElementById('syncInfo');
-    if(info)info.textContent='Sem internet • sincronização retomará automaticamente';
-    return false;
-  }
-  if(!authSession?.access_token||!currentUser?.id)return false;
-  if(!window.supabase?.createClient)return false;
+  if(realtimeStartPromise)return realtimeStartPromise;
 
-  if(!force&&realtimeChannel&&realtimeUserId===currentUser.id&&(realtimeState==='connecting'||realtimeState==='ready')){
-    if(realtimeToken!==authSession.access_token){
-      realtimeToken=authSession.access_token;
-      try{realtimeClient?.realtime?.setAuth(realtimeToken)}catch{}
+  realtimeStartPromise=(async()=>{
+    if(!navigator.onLine){
+      realtimeState='idle';
+      realtimeStatus('● Sem internet','error');
+      const info=document.getElementById('syncInfo');
+      if(info)info.textContent='Sem internet • sincronização retomará automaticamente';
+      return false;
     }
-    return true;
-  }
+    if(!authSession?.access_token||!currentUser?.id||!window.supabase?.createClient)return false;
 
-  await stopRealtimeSync();
-  if(!navigator.onLine||!authSession?.access_token||!currentUser?.id)return false;
+    if(realtimeChannel&&realtimeUserId===currentUser.id&&!force){
+      if(realtimeToken!==authSession.access_token){
+        realtimeToken=authSession.access_token;
+        try{realtimeClient?.realtime?.setAuth(realtimeToken)}catch{}
+      }
+      return true;
+    }
 
-  realtimeUserId=currentUser.id;
-  realtimeToken=authSession.access_token;
-  realtimeState='connecting';
-  realtimeStatus('● Nuvem • conectando...','syncing');
+    if(force||realtimeChannel)await stopRealtimeSync();
+    if(!navigator.onLine||!authSession?.access_token||!currentUser?.id)return false;
 
-  realtimeClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-    auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
-    realtime:{params:{eventsPerSecond:2}}
-  });
-  realtimeClient.realtime.setAuth(realtimeToken);
+    realtimeUserId=currentUser.id;
+    realtimeToken=authSession.access_token;
+    realtimeState='connecting';
+    realtimeStatus('● Nuvem • conectando...','syncing');
 
-  realtimeChannel=realtimeClient
-    .channel('xburguer-caixa-live')
-    .on('postgres_changes',{event:'*',schema:'public',table:'cash_closings'},()=>scheduleRealtimeReload())
-    .subscribe(status=>{
+    const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+      auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
+      realtime:{params:{eventsPerSecond:2}}
+    });
+    client.realtime.setAuth(realtimeToken);
+    realtimeClient=client;
+
+    const channel=client
+      .channel('xburguer-caixa-live')
+      .on('postgres_changes',{event:'*',schema:'public',table:'cash_closings'},()=>scheduleRealtimeReload());
+    realtimeChannel=channel;
+
+    channel.subscribe(status=>{
+      if(channel!==realtimeChannel)return;
+
       if(status==='SUBSCRIBED'){
         realtimeState='ready';
+        realtimeRetryCount=0;
         clearTimeout(realtimeReconnectTimer);
+        realtimeReconnectTimer=null;
         realtimeStatus('● Nuvem • tempo real','online');
         const info=document.getElementById('syncInfo');
         if(info)info.textContent='Tempo real ativo';
-      }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        return;
+      }
+
+      if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
         realtimeState='error';
         realtimeStatus(navigator.onLine?'● Nuvem • reconectando...':'● Sem internet',navigator.onLine?'syncing':'error');
         const info=document.getElementById('syncInfo');
         if(info)info.textContent=navigator.onLine?'Reconectando automaticamente...':'Sem internet • aguardando conexão';
         if(navigator.onLine)scheduleRealtimeRestart();
-      }else if(status==='CLOSED'&&!realtimeStopping){
+        return;
+      }
+
+      if(status==='CLOSED'&&!realtimeStopping){
         realtimeState='error';
-        if(authSession&&navigator.onLine){
+        if(authSession?.access_token&&navigator.onLine){
           realtimeStatus('● Nuvem • reconectando...','syncing');
           scheduleRealtimeRestart();
         }
       }
     });
 
-  return true;
+    return true;
+  })();
+
+  try{return await realtimeStartPromise}
+  finally{realtimeStartPromise=null}
 }
 
-/* Verificação leve de segurança; reconexões normais continuam orientadas por eventos. */
+/* Verificação leve. O próprio cliente Realtime tenta recuperar a conexão;
+   esta rotina só recria o canal quando ele realmente ficou indisponível. */
 setInterval(()=>{
   if(!navigator.onLine)return;
   if(authSession?.access_token&&currentUser?.id){
-    if(!realtimeChannel||realtimeState==='error'||realtimeState==='idle')startRealtimeSync(realtimeState==='error').catch(()=>{});
+    if(!realtimeChannel||realtimeState==='idle')startRealtimeSync(false).catch(()=>{});
+    else if(realtimeState==='error')scheduleRealtimeRestart();
     else if(realtimeToken!==authSession.access_token)startRealtimeSync(false).catch(()=>{});
   }else if(realtimeChannel){
     stopRealtimeSync().catch(()=>{});
   }
-},10000);
+},30000);
 
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState!=='visible'||!navigator.onLine||!authSession?.access_token)return;
-  startRealtimeSync(realtimeState==='error').then(async()=>{
+  startRealtimeSync(false).then(async()=>{
     try{
       await loadCloudData();
       if(!formDirty)loadBestRecordForDate(activeClosingDate||$('date')?.value||isoToday(),{notify:false});
@@ -169,13 +204,16 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 window.addEventListener('online',()=>{
-  if(authSession?.access_token)startRealtimeSync(true).catch(()=>{});
+  realtimeRetryCount=0;
+  if(authSession?.access_token)startRealtimeSync(true).catch(()=>scheduleRealtimeRestart());
 });
 
 window.addEventListener('offline',()=>{
   realtimeState='idle';
   clearTimeout(realtimeReconnectTimer);
   clearTimeout(realtimeReloadTimer);
+  realtimeReconnectTimer=null;
+  realtimeReloadTimer=null;
   realtimeStatus('● Sem internet','error');
   const info=document.getElementById('syncInfo');
   if(info)info.textContent='Sem internet • sincronização retomará automaticamente';

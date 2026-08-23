@@ -80,14 +80,14 @@ loadCloudData=function(){
 
 function xbApplyCashRule(rec){
   if(!rec)return rec;
-  const expected=Math.round((Number(rec.cash||0)-Number(rec.cashOut||0))*100)/100;
+  const expected=Math.round((Number(rec.cash||0)+Number(rec.deliveryCash||0)-Number(rec.cashOut||0))*100)/100;
   rec.expectedCash=expected;
   rec.cashDifference=Math.round((Number(rec.countedCash||0)-expected)*100)/100;
   return rec;
 }
 
 /* Regra oficial da conferência física:
-   V. Dinheiro (Caixa) - dinheiro retirado para despesas.
+   Dinheiro (Caixa) + Dinheiro (Entregas) - dinheiro retirado para despesas.
    Saldo inicial não entra na conferência física. */
 const xbOriginalCurrentRecord=currentRecord;
 currentRecord=function(dateOverride=null){
@@ -109,7 +109,7 @@ calc=function(){
       diffEl.textContent='—';
       diffEl.classList.remove('positive','negative');
     }else{
-      const expected=n('cash')-n('cashOut');
+      const expected=n('cash')+n('deliveryCash')-n('cashOut');
       const diff=n('countedCash')-expected;
       diffEl.textContent=br(diff);
       setTone(diffEl,diff);
@@ -187,7 +187,7 @@ validateBackupRecords=function(records){
 
     if(!String(r.resp||'').trim())return`Registro ${i+1} está sem responsável.`;
 
-    const moneyFields=['opening','cash','cardOut','onlinePayment','deliveryCard','cashOut','countedCash','sales','expense'];
+    const moneyFields=['opening','cash','deliveryCash','cardOut','onlinePayment','deliveryCard','cashOut','countedCash','sales','expense'];
     for(const key of moneyFields){
       if(!validMoney(r[key]))return`Registro ${i+1} possui valor financeiro inválido em ${key}.`;
     }
@@ -206,8 +206,13 @@ validateBackupRecords=function(records){
     }
 
     const breads=r.breads||{};
-    for(const key of ['idealStart','idealProd','idealOut','gourmetStart','gourmetProd','gourmetOut']){
+    for(const key of ['idealStart','idealFinal','idealProd','idealOut','gourmetStart','gourmetFinal','gourmetProd','gourmetOut']){
       if(!validQty(breads[key]))return`Registro ${i+1} possui quantidade de pão inválida.`;
+    }
+    for(const prefix of ['ideal','gourmet']){
+      const start=Number(breads[prefix+'Start']||0);
+      const final=breads[prefix+'Final'];
+      if(final!==undefined&&final!==null&&final!==''&&Number(final)>start)return`Registro ${i+1} possui estoque final maior que o estoque inicial.`;
     }
 
     const expenses=Array.isArray(r.expenses)?r.expenses:[];
@@ -249,7 +254,7 @@ refreshBackup=function(){
 
 /* Proteções e teclado adequados para valores e quantidades. */
 (function hardenInputs(){
-  const moneyIds=['opening','cash','cardOut','online','deliveryCard','cashOut','countedCash','anotaVal','aiqVal'];
+  const moneyIds=['opening','cash','deliveryCash','cardOut','online','deliveryCard','cashOut','countedCash','anotaVal','aiqVal'];
   moneyIds.forEach(id=>{
     const el=$(id);if(!el)return;
     el.min='0';el.step='0.01';el.inputMode='decimal';
