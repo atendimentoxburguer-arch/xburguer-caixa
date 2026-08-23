@@ -3,8 +3,10 @@ const fs=require('node:fs/promises');
 const crypto=require('node:crypto');
 
 test('login, fechamento, persistência, relatório, edição e backup',async({page})=>{
-  await page.addInitScript(()=>localStorage.clear());
   await page.goto('/caixa.html?e2e=1');
+  await page.waitForFunction(()=>window.__XB_E2E_READY__===true);
+  await page.evaluate(()=>window.XBE2E.reset());
+  await page.reload();
   await page.waitForFunction(()=>window.__XB_E2E_READY__===true);
   await expect(page.locator('#xbIdentityBlock')).toHaveCount(0);
 
