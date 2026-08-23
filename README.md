@@ -31,9 +31,25 @@ Arquivos, alterações, workflows e configurações do X-Burguer Controle não d
 - despesas do dia;
 - resumo financeiro com Dinheiro (Caixa), Dinheiro (Entregas), cartões e Pix/apps;
 - conferência automática de pagamentos e contagem física opcional;
-- backup JSON/CSV e restauração atômica;
+- backup JSON protegido por SHA-256 e restauração atômica;
+- registro das exportações de backup no Supabase;
+- snapshot diário de recuperação mantido por 30 dias;
 - modo offline seguro;
 - PWA instalável e layout responsivo.
+
+## Proteção de dados e backup
+
+O sistema usa três camadas complementares de proteção:
+
+1. **Supabase** como banco principal, com RLS, validações e auditoria de alterações.
+2. **Snapshot diário de recuperação** no próprio banco, atualizado depois de gravações críticas e mantido por 30 dias.
+3. **Backup externo JSON** para ser guardado fora do aparelho e fora do Supabase.
+
+O backup externo atual usa o formato `xburguer-caixa-backup-v2`, informa a quantidade de fechamentos e inclui uma assinatura **SHA-256** dos registros. Antes de restaurar um backup protegido, o aplicativo recalcula a assinatura e bloqueia a restauração se o arquivo estiver corrompido ou alterado.
+
+O aplicativo considera o backup externo **em dia** quando a última exportação verificada ocorreu há no máximo 7 dias. Backups antigos continuam compatíveis, mas são identificados como arquivos sem assinatura SHA-256.
+
+O snapshot interno é uma segunda rede de segurança e não substitui a cópia externa. Para proteção contra perda do projeto inteiro do Supabase, é necessário manter regularmente o arquivo JSON em outro local, como OneDrive, Google Drive ou outro armazenamento externo.
 
 ## Regra atual do controle de pães
 
