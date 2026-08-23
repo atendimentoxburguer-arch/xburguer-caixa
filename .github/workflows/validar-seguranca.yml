@@ -1,0 +1,75 @@
+name: Validar Segurança X-Burguer Caixa
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  seguranca:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar sintaxe dos módulos de segurança
+        run: |
+          node --check security-hardening.js
+          node --check e2e-security-adapter.js
+          node --check index-bootstrap.js
+
+      - name: Validar CSP, segredos e fluxo protegido
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re, sys
+
+          root=Path('.')
+          errors=[]
+          def need(ok,msg):
+              if not ok: errors.append(msg)
+          def read(name):
+              return (root/name).read_text(encoding='utf-8',errors='ignore')
+
+          caixa=read('caixa.html')
+          index=read('index.html')
+          sw=read('service-worker.js')
+          security=read('security-hardening.js')
+          e2e_security=read('e2e-security-adapter.js')
+
+          for name,text in [('caixa.html',caixa),('index.html',index)]:
+              need('Content-Security-Policy' in text,f'{name}: CSP ausente.')
+              need("object-src 'none'" in text,f'{name}: object-src precisa permanecer bloqueado.')
+              need("base-uri 'none'" in text,f'{name}: base-uri precisa permanecer bloqueado.')
+              need('name="referrer" content="no-referrer"' in text,f'{name}: política de referrer ausente.')
+
+          need('https://trnngxezppeembrvxkhh.supabase.co' in caixa,'CSP não libera somente o Supabase oficial.')
+          need('wss://trnngxezppeembrvxkhh.supabase.co' in caixa,'CSP não libera o Realtime oficial.')
+          need('@supabase/supabase-js@2.112.3' in caixa,'Supabase JS precisa permanecer fixado na versão auditada.')
+          need('@supabase/supabase-js@2"></script>' not in caixa,'Dependência Supabase voltou a usar alias móvel @2.')
+          need(not re.search(r'<script(?![^>]*\bsrc=)[^>]*>',index,re.I),'index.html não pode conter script inline.')
+
+          need("sbRest('rpc/delete_cash_closing'" in security,'Exclusão não usa o RPC protegido.')
+          need('security-hardening.js?v=4.18.2-security1' in caixa,'Módulo de segurança não está carregado.')
+          need(caixa.find('security-hardening.js') < caixa.find('e2e-adapter.js') < caixa.find('e2e-security-adapter.js') < caixa.find('app5.js'),'Ordem dos módulos de segurança/E2E está incorreta.')
+          need('rpc/delete_cash_closing' in e2e_security,'Ambiente E2E não cobre o RPC de exclusão.')
+
+          for asset in ('index-bootstrap.js','security-hardening.js','e2e-security-adapter.js'):
+              need(f'"./{asset}"' in sw,f'{asset} não está no precache offline.')
+
+          runtime=[p for p in root.glob('*.js')]+[root/'index.html',root/'caixa.html']
+          forbidden=('service_role','sb_secret_','BEGIN PRIVATE KEY','BEGIN RSA PRIVATE KEY')
+          for path in runtime:
+              text=path.read_text(encoding='utf-8',errors='ignore')
+              for token in forbidden:
+                  if token in text:
+                      errors.append(f'{path}: possível segredo/credencial proibida encontrada: {token}')
+
+          if errors:
+              print('\n'.join('ERRO: '+e for e in errors))
+              sys.exit(1)
+          print('OK: CSP, dependência fixada, ausência de segredos e exclusão protegida validadas.')
+          PY
