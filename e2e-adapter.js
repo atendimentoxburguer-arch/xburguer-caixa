@@ -10,6 +10,7 @@
   const DATA_KEY='xb_e2e_cloud_records_v1';
   const rules=window.XBBusinessRules;
   const originalFetch=window.fetch.bind(window);
+  let nextSaveError=null;
 
   window.fetch=async function(input,init){
     const raw=typeof input==='string'?input:input?.url||'';
@@ -81,6 +82,11 @@
   };
 
   saveRecordCloud=async function(record){
+    if(nextSaveError){
+      const message=nextSaveError;
+      nextSaveError=null;
+      throw new Error(message);
+    }
     const saved=upsertRecord(record);
     cloudData=readRecords();
     return saved._id;
@@ -137,8 +143,12 @@
       localStorage.removeItem(DATA_KEY);
       clearStoredSessions();
       cloudData=[];
+      nextSaveError=null;
     },
-    records:readRecords
+    records:readRecords,
+    failNextSave(message='Falha de salvamento E2E simulada.'){
+      nextSaveError=String(message||'Falha de salvamento E2E simulada.');
+    }
   };
 
   setTimeout(()=>{
