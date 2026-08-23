@@ -47,9 +47,25 @@ O sistema usa três camadas complementares de proteção:
 
 O backup externo atual usa o formato `xburguer-caixa-backup-v2`, informa a quantidade de fechamentos e inclui uma assinatura **SHA-256** dos registros. Antes de restaurar um backup protegido, o aplicativo recalcula a assinatura e bloqueia a restauração se o arquivo estiver corrompido ou alterado.
 
+O snapshot interno também possui contagem de registros e assinatura SHA-256 do payload. A lixeira de emergência verifica a assinatura antes de aceitar uma restauração de fechamento excluído.
+
 O aplicativo considera o backup externo **em dia** quando a última exportação verificada ocorreu há no máximo 7 dias. Backups antigos continuam compatíveis, mas são identificados como arquivos sem assinatura SHA-256.
 
 O snapshot interno é uma segunda rede de segurança e não substitui a cópia externa. Para proteção contra perda do projeto inteiro do Supabase, é necessário manter regularmente o arquivo JSON em outro local, como OneDrive, Google Drive ou outro armazenamento externo.
+
+## Segurança da aplicação
+
+- todas as tabelas públicas usam RLS;
+- a role `anon` não possui privilégios diretos nas tabelas do sistema;
+- usuários autenticados não recebem privilégios SQL de `TRUNCATE`, `TRIGGER` ou `REFERENCES`;
+- a exclusão de fechamentos passa pelo RPC `delete_cash_closing`, com validação de usuário ativo e administrador;
+- fechamentos excluídos são preservados em recuperação com SHA-256;
+- a tela principal usa Content Security Policy para limitar scripts, conexões, frames, objetos e outros recursos;
+- a biblioteca Supabase JS usada pelo Realtime fica fixada em uma versão auditada, evitando atualização silenciosa por alias móvel;
+- o bootstrap da página inicial não utiliza JavaScript inline;
+- o CI possui uma validação específica para impedir regressões nas proteções acima e procurar padrões de credenciais privadas no código de runtime.
+
+A chave `sb_publishable_...` presente no frontend é uma **chave publicável do Supabase**. Chaves `service_role`, `sb_secret_...`, senhas, tokens privados e backups reais não devem ser adicionados ao repositório.
 
 ## Regra atual do controle de pães
 
