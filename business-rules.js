@@ -28,6 +28,19 @@
     return roundMoney(num(record.cash)+num(record.deliveryCash)-num(record.cashOut));
   }
 
+  function nextOpeningBalance(previousRecord={}){
+    return Math.max(0,roundMoney(
+      num(previousRecord.opening)+
+      num(previousRecord.cash)+
+      num(previousRecord.deliveryCash)-
+      num(previousRecord.cashOut)
+    ));
+  }
+
+  function isFirstDayOfMonth(date){
+    return /^\d{4}-\d{2}-01$/.test(String(date||''));
+  }
+
   function financialSummaryTotal(record={}){
     return roundMoney(num(record.opening)+paymentTotal(record));
   }
@@ -179,6 +192,8 @@
     roundMoney,
     paymentTotal,
     expectedCash,
+    nextOpeningBalance,
+    isFirstDayOfMonth,
     financialSummaryTotal,
     channelSales,
     channelOrders,
