@@ -4,6 +4,86 @@
   const rules=window.XBBusinessRules;
   if(!rules)throw new Error('X-Burguer Caixa: módulo de regras de negócio não carregado.');
 
+  const AUTO_OPENING_EFFECTIVE_DATE='2026-08-24';
+  const byId=id=>document.getElementById(id);
+
+  function previousDate(date){
+    const match=String(date||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!match)return'';
+    const stamp=Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3]));
+    return new Date(stamp-86400000).toISOString().slice(0,10);
+  }
+
+  function isManagedOpeningDate(date){
+    const value=String(date||'');
+    return value>=AUTO_OPENING_EFFECTIVE_DATE&&!rules.isFirstDayOfMonth(value);
+  }
+
+  function savedRecords(){
+    try{return typeof load==='function'?(load()||[]):[]}catch{return[]}
+  }
+
+  function findPreviousSaved(date){
+    const target=previousDate(date);
+    if(!target)return null;
+    const record=savedRecords().find(item=>String(item?.date||'')===target)||null;
+    return record?rules.normalizeRecord(record,{cashCountVerified:record.cashCountVerified}):null;
+  }
+
+  function findSaved(date){
+    return savedRecords().find(item=>String(item?.date||'')===String(date||''))||null;
+  }
+
+  function setOpeningReadonly(readonly,title){
+    const input=byId('opening');
+    const proxy=byId('opening__brl');
+    [input,proxy].filter(Boolean).forEach(el=>{
+      el.readOnly=!!readonly;
+      el.setAttribute('aria-readonly',readonly?'true':'false');
+      el.title=title||'';
+      el.dataset.openingMode=readonly?'automatic':'manual';
+    });
+  }
+
+  function setOpeningValue(value){
+    const input=byId('opening');
+    if(!input)return;
+    input.value=value===''?'':String(rules.roundMoney(value));
+    try{window.XBurguerCurrency?.refresh?.()}catch{}
+  }
+
+  function applyOpeningRule(date,{preserveSavedWhenMissing=true}={}){
+    const target=String(date||'');
+    if(!target)return{mode:'unknown'};
+
+    if(!isManagedOpeningDate(target)){
+      const first=rules.isFirstDayOfMonth(target);
+      setOpeningReadonly(false,first
+        ?'Dia 01: Saldo Inicial manual. O mês começa com um novo saldo base.'
+        :'Registro anterior à regra automática: Saldo Inicial preservado.');
+      return{mode:first?'manual-month-start':'legacy'};
+    }
+
+    const previous=findPreviousSaved(target);
+    if(previous){
+      const value=rules.nextOpeningBalance(previous);
+      setOpeningValue(value);
+      setOpeningReadonly(true,'Automático: Saldo Inicial anterior + Dinheiro do Caixa + Dinheiro das Entregas − retiradas para despesas.');
+      return{mode:'automatic',value,previousDate:previous.date};
+    }
+
+    const saved=findSaved(target);
+    if(saved&&preserveSavedWhenMissing){
+      setOpeningValue(saved.opening||0);
+      setOpeningReadonly(true,'Saldo preservado deste fechamento. O fechamento do dia anterior não está disponível para recalcular.');
+      return{mode:'preserved',value:Number(saved.opening||0)};
+    }
+
+    setOpeningValue('');
+    setOpeningReadonly(true,'Salve primeiro o fechamento do dia anterior para calcular o Saldo Inicial automaticamente.');
+    return{mode:'missing-previous',previousDate:previousDate(target)};
+  }
+
   if(typeof cloudToRecord==='function'){
     const previous=cloudToRecord;
     cloudToRecord=function(row){
@@ -21,12 +101,35 @@
     };
   }
 
+  if(typeof resetFormFields==='function'){
+    const previous=resetFormFields;
+    resetFormFields=function(date){
+      const result=previous(date);
+      applyOpeningRule(date||byId('date')?.value||'');
+      try{calc()}catch{}
+      return result;
+    };
+  }
+
+  if(typeof populateForm==='function'){
+    const previous=populateForm;
+    populateForm=function(record,options={}){
+      const result=previous(record,options);
+      const date=record?.date||byId('date')?.value||'';
+      applyOpeningRule(date,{preserveSavedWhenMissing:true});
+      try{calc()}catch{}
+      return result;
+    };
+  }
+
   if(typeof currentRecord==='function'){
     const previous=currentRecord;
     currentRecord=function(dateOverride=null){
+      const target=dateOverride||window.activeClosingDate||byId('date')?.value||'';
+      applyOpeningRule(target,{preserveSavedWhenMissing:true});
       const base=previous(dateOverride);
       if(!base)return base;
-      const countedRaw=String(document.getElementById('countedCash')?.value??'').trim();
+      const countedRaw=String(byId('countedCash')?.value??'').trim();
       return rules.normalizeRecord(base,{cashCountVerified:countedRaw!==''});
     };
   }
@@ -36,14 +139,35 @@
     validateRecord=function(record){
       const base=previous(record);
       if(base!==true)return base;
-      return rules.validateCanonicalRecord(record);
+      const canonical=rules.validateCanonicalRecord(record);
+      if(canonical!==true)return canonical;
+
+      if(isManagedOpeningDate(record?.date)){
+        const previousClosing=findPreviousSaved(record.date);
+        if(!previousClosing){
+          if(findSaved(record.date))return true;
+          const missing=previousDate(record.date);
+          const label=missing?new Date(missing+'T12:00:00').toLocaleDateString('pt-BR'):'dia anterior';
+          return`Salve primeiro o fechamento de ${label} para calcular o Saldo Inicial automaticamente.`;
+        }
+        const expected=rules.nextOpeningBalance(previousClosing);
+        if(Math.abs(Number(record.opening||0)-expected)>=0.01){
+          return`O Saldo Inicial desta data é automático e deve ser ${expected.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}.`;
+        }
+      }
+      return true;
     };
   }
+
+  setTimeout(()=>{
+    try{applyOpeningRule(window.activeClosingDate||byId('date')?.value||'')}catch{}
+  },0);
 
   window.XBArchitecture=Object.freeze({
     version:'1',
     appVersion:rules.VERSION,
     layers:Object.freeze(['ui','business-rules','persistence','backup','realtime']),
+    openingPolicy:Object.freeze({effectiveDate:AUTO_OPENING_EFFECTIVE_DATE,dayOne:'manual',otherDays:'automatic'}),
     rules
   });
 })();
