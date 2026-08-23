@@ -6,6 +6,7 @@ const PRECACHE = [
   "./caixa.html",
   "./manifest.webmanifest",
   "./pwa-register.js",
+  "./index-bootstrap.js",
 
   "./style1.css",
   "./style2.css",
@@ -25,6 +26,7 @@ const PRECACHE = [
   "./bread-summary.css",
   "./online-orders-equal.css",
 
+  "./frame-guard.js",
   "./shell1.js",
   "./shell2.js",
   "./shell3.js",
@@ -56,7 +58,9 @@ const PRECACHE = [
   "./cash-conference-help.js",
   "./backup-protection.js",
   "./business-rules-integration.js",
+  "./security-hardening.js",
   "./e2e-adapter.js",
+  "./e2e-security-adapter.js",
   "./app5.js",
   "./system-guard.js",
   "./realtime.js",
