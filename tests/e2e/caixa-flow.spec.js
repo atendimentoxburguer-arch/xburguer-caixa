@@ -73,7 +73,7 @@ test('login, fechamento, persistência, relatório, edição e backup',async({pa
   await page.reload();
   await page.waitForFunction(()=>window.__XB_E2E_READY__===true);
   await expect(page.locator('#loginScreen')).toHaveClass(/hidden/,{timeout:5000});
-  await page.locator('[data-page="fechamento"]').click();
+  await openClosing(page,'2026-08-22');
   await expect(page.locator('#resp')).toHaveValue('Teste Automatizado');
   expect(await page.evaluate(()=>document.getElementById('v0').value)).toBe('100');
 
