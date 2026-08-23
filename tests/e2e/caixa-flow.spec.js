@@ -17,14 +17,14 @@ test('login, fechamento, persistência, relatório, edição e backup',async({pa
   await page.locator('#date').fill('2026-08-22');
   await page.locator('#date').dispatchEvent('change');
   await page.locator('#resp').fill('Teste Automatizado');
-  await page.locator('#opening').fill('50');
-  await page.locator('#cash').fill('60');
-  await page.locator('#deliveryCash').fill('20');
-  await page.locator('#cardOut').fill('20');
-  await page.locator('#cashOut').fill('10');
-  await page.locator('#countedCash').fill('70');
+  await page.locator('#opening__brl').fill('50');
+  await page.locator('#cash__brl').fill('60');
+  await page.locator('#deliveryCash__brl').fill('20');
+  await page.locator('#cardOut__brl').fill('20');
+  await page.locator('#cashOut__brl').fill('10');
+  await page.locator('#countedCash__brl').fill('70');
   await page.locator('#q0').fill('1');
-  await page.locator('#v0').fill('100');
+  await page.locator('#v0__brl').fill('100');
   await page.locator('#idealStart').fill('100');
   await page.locator('#idealProd').fill('80');
   await page.locator('#gourmetStart').fill('50');
@@ -48,7 +48,7 @@ test('login, fechamento, persistência, relatório, edição e backup',async({pa
   await expect(page.locator('#loginScreen')).toHaveClass(/hidden/,{timeout:5000});
   await page.locator('[data-page="fechamento"]').click();
   await expect(page.locator('#resp')).toHaveValue('Teste Automatizado');
-  await expect(page.locator('#v0')).toHaveValue('100');
+  expect(await page.evaluate(()=>document.getElementById('v0').value)).toBe('100');
 
   await page.locator('[data-page="mensal"]').click();
   await page.locator('#dailyReportDate').fill('2026-08-22');
