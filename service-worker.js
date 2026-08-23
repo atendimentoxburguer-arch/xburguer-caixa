@@ -26,6 +26,7 @@ const PRECACHE = [
   "./bread-summary.css",
   "./online-orders-equal.css",
 
+  "./frame-guard.js",
   "./shell1.js",
   "./shell2.js",
   "./shell3.js",
