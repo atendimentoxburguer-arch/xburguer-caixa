@@ -63,7 +63,17 @@ O **Acumulado do mês** soma as produções calculadas no mês. O campo legado *
 
 O **Total de Vendas Geral** do Resumo financeiro é independente do total de **Vendas por canal** e soma os valores do próprio bloco financeiro, incluindo o saldo inicial.
 
-A conferência física da gaveta usa:
+A partir de **24/08/2026**, o **Saldo Inicial** segue uma cadeia diária dentro de cada mês:
+
+- no **dia 01**, o Saldo Inicial é informado manualmente, iniciando o novo mês;
+- nos demais dias, o campo é calculado automaticamente e fica bloqueado para edição;
+- o cálculo usa exatamente o fechamento do dia anterior;
+- se o fechamento do dia anterior ainda não existir, o próximo dia não pode ser salvo até que a sequência seja completada;
+- o histórico anterior à implantação da regra não é recalculado automaticamente.
+
+`Saldo Inicial do dia = máximo de R$ 0,00 entre (Saldo Inicial anterior + Dinheiro do Caixa anterior + Dinheiro das Entregas anterior - dinheiro retirado para despesas no dia anterior)`
+
+A conferência física da gaveta continua usando uma regra separada:
 
 `Dinheiro previsto = Dinheiro (Caixa) + Dinheiro (Entregas) - retiradas para despesas`
 
