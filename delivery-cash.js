@@ -16,9 +16,7 @@
     deliveryRow.className='data-row';
     deliveryRow.innerHTML='<span>Dinheiro (Entregas)</span><input id="deliveryCash" type="number" min="0" step="0.01" inputmode="decimal" placeholder="R$"><span class="money" id="aDeliveryCash">R$ 0,00</span>';
     row.insertAdjacentElement('afterend',deliveryRow);
-    const input=byId('deliveryCash');
-    if(input&&typeof onFormInput==='function')input.addEventListener('input',onFormInput);
-    return input;
+    return byId('deliveryCash');
   }
 
   function fixBreadPlaceholders(){
