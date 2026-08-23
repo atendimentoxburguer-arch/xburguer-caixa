@@ -1,0 +1,51 @@
+name: Testes Funcionais X-Burguer Caixa
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  regras-e-navegador:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Instalar dependências de teste
+        run: npm install --no-audit --no-fund
+
+      - name: Testar regras de negócio
+        run: npm run test:unit
+
+      - name: Instalar Chromium do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Iniciar servidor local isolado
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/xburguer-http.log 2>&1 &
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/caixa.html >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/xburguer-http.log
+          exit 1
+
+      - name: Testar fluxo completo no navegador
+        run: npm run test:e2e
+
+      - name: Guardar rastros em caso de falha
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          if-no-files-found: ignore
