@@ -1,0 +1,62 @@
+name: Validar Backup X-Burguer Caixa
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar proteção profissional de backup
+        run: |
+          set -e
+          node --check backup-protection.js
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+
+          errors=[]
+          def need(ok,msg):
+              if not ok: errors.append(msg)
+
+          backup=Path('backup-protection.js').read_text(encoding='utf-8')
+          caixa=Path('caixa.html').read_text(encoding='utf-8')
+          sw=Path('service-worker.js').read_text(encoding='utf-8')
+          readme=Path('README.md').read_text(encoding='utf-8')
+
+          need("const FORMAT='xburguer-caixa-backup-v2'" in backup,'Formato protegido v2 ausente.')
+          need("const MAX_AGE_DAYS=7" in backup,'Prazo semanal do backup externo foi alterado.')
+          need("crypto.subtle.digest('SHA-256'" in backup,'Assinatura SHA-256 ausente.')
+          need('recordCount:records.length' in backup,'Backup não registra a quantidade de fechamentos.')
+          need('async function verifyEnvelope' in backup,'Verificação de integridade antes da restauração ausente.')
+          need("actual!==expected" in backup,'Comparação do checksum SHA-256 ausente.')
+          need("baseSbRest('backup_exports'" in backup,'Registro da exportação externa no Supabase ausente.')
+          need("baseSbRest('rpc/create_cash_snapshot'" in backup,'Snapshot automático do Supabase ausente.')
+          need("rpc/restore_cash_backup" in backup,'Snapshot não acompanha restaurações de backup.')
+          need("rpc/save_cash_closing" in backup,'Snapshot não acompanha salvamentos de fechamento.')
+          need("method==='DELETE'" in backup and "cash_closings?" in backup,'Snapshot não acompanha exclusões de fechamento.')
+          need('Lembrete de segurança' in backup,'Lembrete periódico de backup externo ausente.')
+
+          pos=caixa.find('backup-protection.js')
+          app5=caixa.find('app5.js')
+          need(pos>=0 and app5>=0 and pos<app5,'Proteção de backup precisa carregar antes do app5.js.')
+          need('backup-protection.js?v=4.18.2-backup1' in caixa,'Cache-busting da proteção de backup ausente.')
+          need('"./backup-protection.js"' in sw,'Proteção de backup não está no precache offline.')
+
+          need('backup JSON protegido por SHA-256' in readme,'README não documenta backup SHA-256.')
+          need('snapshot diário de recuperação mantido por 30 dias' in readme,'README não documenta retenção dos snapshots.')
+          need('xburguer-caixa-backup-v2' in readme,'README não documenta o formato v2.')
+
+          if errors:
+              print('\n'.join('ERRO: '+e for e in errors))
+              sys.exit(1)
+          print('OK: backup externo SHA-256, registro em nuvem, snapshot e lembrete semanal validados.')
+          PY
