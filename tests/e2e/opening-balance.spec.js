@@ -25,6 +25,11 @@ async function money(page,id,value){
   await page.locator(`#${id}__brl`).fill(String(value));
 }
 
+async function confirmSaveWarningIfNeeded(page){
+  const layer=page.locator('#confirmLayer');
+  if(await layer.isVisible())await page.locator('#confirmOkBtn').click();
+}
+
 async function saveClosing(page,{date,resp,opening,cash,delivery,cashOut,sales}){
   await selectDate(page,date);
   await page.locator('#resp').fill(resp);
@@ -35,6 +40,7 @@ async function saveClosing(page,{date,resp,opening,cash,delivery,cashOut,sales})
   await page.locator('#q0').fill('1');
   await money(page,'v0',sales);
   await page.locator('#saveTopBtn').click();
+  await confirmSaveWarningIfNeeded(page);
   await expect(page.locator('#toast')).toContainText('salvo',{timeout:5000});
 }
 
@@ -57,6 +63,7 @@ test('dia 01 é manual e dias seguintes recebem saldo inicial automático',async
   await page.locator('#q0').fill('1');
   await money(page,'v0',150);
   await page.locator('#saveTopBtn').click();
+  await confirmSaveWarningIfNeeded(page);
   await expect(page.locator('#toast')).toContainText('salvo',{timeout:5000});
 
   await selectDate(page,'2026-09-03');
