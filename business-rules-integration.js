@@ -75,11 +75,7 @@
     }
 
     const saved=findSaved(target);
-    if(saved&&preserveSavedWhenMissing){
-      setOpeningValue(saved.opening||0);
-    }else{
-      setOpeningValue('');
-    }
+    if(saved&&preserveSavedWhenMissing)setOpeningValue(saved.opening||0);
     setOpeningReadonly(false,'Não existe fechamento anterior salvo neste mês. Neste primeiro registro disponível, informe o Saldo Inicial manualmente.');
     return{mode:'manual-no-previous',value:saved?Number(saved.opening||0):null};
   }
