@@ -74,3 +74,54 @@ test('dia 01 é manual e dias seguintes recebem saldo inicial automático',async
   await expect(page.locator('#opening__brl')).toHaveJSProperty('readOnly',false);
   expect(await page.evaluate(()=>document.getElementById('opening').value)).toBe('');
 });
+
+test('permite pular dias e usa o último fechamento anterior salvo no mês',async({page})=>{
+  await openCleanApp(page);
+  await login(page);
+
+  await saveClosing(page,{
+    date:'2026-09-01',resp:'Dia 01',opening:100,cash:250,delivery:80,cashOut:130,sales:330
+  });
+
+  await selectDate(page,'2026-09-05');
+  await expect(page.locator('#opening__brl')).toHaveJSProperty('readOnly',true);
+  expect(await page.evaluate(()=>document.getElementById('opening').value)).toBe('300');
+
+  await page.locator('#resp').fill('Dia 05');
+  await money(page,'cash',100);
+  await money(page,'deliveryCash',50);
+  await money(page,'cashOut',75);
+  await page.locator('#q0').fill('1');
+  await money(page,'v0',150);
+  await page.locator('#saveTopBtn').click();
+  await confirmSaveWarningIfNeeded(page);
+  await expect(page.locator('#toast')).toContainText('salvo',{timeout:5000});
+
+  await selectDate(page,'2026-09-10');
+  await expect(page.locator('#opening__brl')).toHaveJSProperty('readOnly',true);
+  expect(await page.evaluate(()=>document.getElementById('opening').value)).toBe('375');
+});
+
+test('primeiro fechamento salvo do mês pode ter saldo inicial manual mesmo fora do dia 01',async({page})=>{
+  await openCleanApp(page);
+  await login(page);
+
+  await selectDate(page,'2026-11-05');
+  await expect(page.locator('#opening__brl')).toHaveJSProperty('readOnly',false);
+  expect(await page.evaluate(()=>document.getElementById('opening').value)).toBe('');
+
+  await page.locator('#resp').fill('Primeiro registro novembro');
+  await money(page,'opening',200);
+  await money(page,'cash',80);
+  await money(page,'deliveryCash',20);
+  await money(page,'cashOut',50);
+  await page.locator('#q0').fill('1');
+  await money(page,'v0',100);
+  await page.locator('#saveTopBtn').click();
+  await confirmSaveWarningIfNeeded(page);
+  await expect(page.locator('#toast')).toContainText('salvo',{timeout:5000});
+
+  await selectDate(page,'2026-11-20');
+  await expect(page.locator('#opening__brl')).toHaveJSProperty('readOnly',true);
+  expect(await page.evaluate(()=>document.getElementById('opening').value)).toBe('250');
+});
