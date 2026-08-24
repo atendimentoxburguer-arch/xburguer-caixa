@@ -79,15 +79,17 @@ O **Acumulado do mês** soma as produções calculadas no mês. O campo legado *
 
 O **Total de Vendas Geral** do Resumo financeiro é independente do total de **Vendas por canal** e soma os valores do próprio bloco financeiro, incluindo o saldo inicial.
 
-A partir de **24/08/2026**, o **Saldo Inicial** segue uma cadeia diária dentro de cada mês:
+A partir de **24/08/2026**, o **Saldo Inicial** segue uma cadeia de fechamentos dentro de cada mês, sem exigir um registro para todos os dias do calendário:
 
 - no **dia 01**, o Saldo Inicial é informado manualmente, iniciando o novo mês;
-- nos demais dias, o campo é calculado automaticamente e fica bloqueado para edição;
-- o cálculo usa exatamente o fechamento do dia anterior;
-- se o fechamento do dia anterior ainda não existir, o próximo dia não pode ser salvo até que a sequência seja completada;
+- nos demais dias, quando existir um fechamento anterior no mesmo mês, o campo é calculado automaticamente e fica bloqueado para edição;
+- o cálculo usa o **último fechamento anterior que realmente estiver salvo no mesmo mês**, mesmo que existam dias sem fechamento entre eles;
+- dias sem movimento ou sem fechamento podem ser pulados e não bloqueiam lançamentos em datas posteriores;
+- se ainda não existir nenhum fechamento anterior no mês e o primeiro registro for feito depois do dia 01, esse primeiro Saldo Inicial fica manual;
+- ao existir uma sequência de fechamentos salvos, alterações anteriores propagam o novo saldo para o próximo fechamento salvo do mês;
 - o histórico anterior à implantação da regra não é recalculado automaticamente.
 
-`Saldo Inicial do dia = máximo de R$ 0,00 entre (Saldo Inicial anterior + Dinheiro do Caixa anterior + Dinheiro das Entregas anterior - dinheiro retirado para despesas no dia anterior)`
+`Saldo Inicial do próximo fechamento salvo = máximo de R$ 0,00 entre (Saldo Inicial anterior + Dinheiro do Caixa anterior + Dinheiro das Entregas anterior - dinheiro retirado para despesas no fechamento anterior)`
 
 A conferência física da gaveta continua usando uma regra separada:
 
