@@ -7,13 +7,6 @@
   const AUTO_OPENING_EFFECTIVE_DATE='2026-08-24';
   const byId=id=>document.getElementById(id);
 
-  function previousDate(date){
-    const match=String(date||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if(!match)return'';
-    const stamp=Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3]));
-    return new Date(stamp-86400000).toISOString().slice(0,10);
-  }
-
   function isManagedOpeningDate(date){
     const value=String(date||'');
     return value>=AUTO_OPENING_EFFECTIVE_DATE&&!rules.isFirstDayOfMonth(value);
@@ -23,10 +16,19 @@
     try{return typeof load==='function'?(load()||[]):[]}catch{return[]}
   }
 
+  function sameMonth(a,b){
+    return String(a||'').slice(0,7)===String(b||'').slice(0,7);
+  }
+
   function findPreviousSaved(date){
-    const target=previousDate(date);
-    if(!target)return null;
-    const record=savedRecords().find(item=>String(item?.date||'')===target)||null;
+    const target=String(date||'');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(target))return null;
+    const record=savedRecords()
+      .filter(item=>{
+        const itemDate=String(item?.date||'');
+        return itemDate<target&&sameMonth(itemDate,target);
+      })
+      .sort((a,b)=>String(b?.date||'').localeCompare(String(a?.date||'')))[0]||null;
     return record?rules.normalizeRecord(record,{cashCountVerified:record.cashCountVerified}):null;
   }
 
@@ -68,20 +70,14 @@
     if(previous){
       const value=rules.nextOpeningBalance(previous);
       setOpeningValue(value);
-      setOpeningReadonly(true,'Automático: Saldo Inicial anterior + Dinheiro do Caixa + Dinheiro das Entregas − retiradas para despesas.');
+      setOpeningReadonly(true,`Automático a partir do último fechamento salvo do mês (${new Date(previous.date+'T12:00:00').toLocaleDateString('pt-BR')}): Saldo Inicial + Dinheiro do Caixa + Dinheiro das Entregas − retiradas para despesas.`);
       return{mode:'automatic',value,previousDate:previous.date};
     }
 
     const saved=findSaved(target);
-    if(saved&&preserveSavedWhenMissing){
-      setOpeningValue(saved.opening||0);
-      setOpeningReadonly(true,'Saldo preservado deste fechamento. O fechamento do dia anterior não está disponível para recalcular.');
-      return{mode:'preserved',value:Number(saved.opening||0)};
-    }
-
-    setOpeningValue('');
-    setOpeningReadonly(true,'Salve primeiro o fechamento do dia anterior para calcular o Saldo Inicial automaticamente.');
-    return{mode:'missing-previous',previousDate:previousDate(target)};
+    if(saved&&preserveSavedWhenMissing)setOpeningValue(saved.opening||0);
+    setOpeningReadonly(false,'Não existe fechamento anterior salvo neste mês. Neste primeiro registro disponível, informe o Saldo Inicial manualmente.');
+    return{mode:'manual-no-previous',value:saved?Number(saved.opening||0):null};
   }
 
   if(typeof cloudToRecord==='function'){
@@ -144,15 +140,10 @@
 
       if(isManagedOpeningDate(record?.date)){
         const previousClosing=findPreviousSaved(record.date);
-        if(!previousClosing){
-          if(findSaved(record.date))return true;
-          const missing=previousDate(record.date);
-          const label=missing?new Date(missing+'T12:00:00').toLocaleDateString('pt-BR'):'dia anterior';
-          return`Salve primeiro o fechamento de ${label} para calcular o Saldo Inicial automaticamente.`;
-        }
+        if(!previousClosing)return true;
         const expected=rules.nextOpeningBalance(previousClosing);
         if(Math.abs(Number(record.opening||0)-expected)>=0.01){
-          return`O Saldo Inicial desta data é automático e deve ser ${expected.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}.`;
+          return`O Saldo Inicial desta data é automático e deve ser ${expected.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}, calculado a partir do último fechamento anterior salvo no mês.`;
         }
       }
       return true;
@@ -167,7 +158,13 @@
     version:'1',
     appVersion:rules.VERSION,
     layers:Object.freeze(['ui','business-rules','persistence','backup','realtime']),
-    openingPolicy:Object.freeze({effectiveDate:AUTO_OPENING_EFFECTIVE_DATE,dayOne:'manual',otherDays:'automatic'}),
+    openingPolicy:Object.freeze({
+      effectiveDate:AUTO_OPENING_EFFECTIVE_DATE,
+      dayOne:'manual',
+      otherDays:'automatic-from-last-saved-in-month',
+      gapsAllowed:true,
+      firstSavedWithoutPrevious:'manual'
+    }),
     rules
   });
 })();
