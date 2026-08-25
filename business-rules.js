@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — regras de negócio canônicas v4.18.2
+/* X-Burguer Caixa — regras de negócio canônicas v4.18.3
    Módulo puro: não acessa DOM, rede, localStorage ou Supabase. */
 (function(root,factory){
   const api=factory();
@@ -7,7 +7,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const VERSION='4.18.2';
+  const VERSION='4.18.3';
   const num=value=>{
     const n=Number(value??0);
     return Number.isFinite(n)?n:0;
@@ -24,23 +24,26 @@
     );
   }
 
+  // Dinheiro físico esperado na gaveta: o saldo inicial não é venda,
+  // mas é dinheiro real que já estava no caixa no começo do dia.
   function expectedCash(record={}){
-    return roundMoney(num(record.cash)+num(record.deliveryCash)-num(record.cashOut));
+    return roundMoney(
+      num(record.opening)+
+      num(record.cash)+
+      num(record.deliveryCash)-
+      num(record.cashOut)
+    );
   }
 
   function nextOpeningBalance(previousRecord={}){
-    return Math.max(0,roundMoney(
-      num(previousRecord.opening)+
-      num(previousRecord.cash)+
-      num(previousRecord.deliveryCash)-
-      num(previousRecord.cashOut)
-    ));
+    return Math.max(0,expectedCash(previousRecord));
   }
 
   function isFirstDayOfMonth(date){
     return /^\d{4}-\d{2}-01$/.test(String(date||''));
   }
 
+  // Resumo de pagamentos nunca inclui saldo inicial.
   function financialSummaryTotal(record={}){
     return paymentTotal(record);
   }
