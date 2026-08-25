@@ -44,6 +44,39 @@ async function saveClosing(page,{date,resp,opening,cash,delivery,cashOut,sales})
   await expect(page.locator('#toast')).toContainText('salvo',{timeout:5000});
 }
 
+test('saldo inicial fica fora das vendas e permanece no dinheiro físico e no próximo dia',async({page})=>{
+  await openCleanApp(page);
+  await login(page);
+  await selectDate(page,'2026-09-01');
+
+  await page.locator('#resp').fill('Teste financeiro');
+  await money(page,'opening',100);
+  await money(page,'cash',250);
+  await money(page,'deliveryCash',80);
+  await money(page,'cashOut',130);
+  await page.locator('#q0').fill('1');
+  await money(page,'v0',330);
+  await money(page,'countedCash',300);
+
+  await expect(page.locator('#daySales')).toHaveText('R$ 330,00');
+  await expect(page.locator('#aSales')).toHaveText('R$ 330,00');
+  await expect(page.locator('#paymentTotal')).toHaveText('R$ 330,00');
+  await expect(page.locator('#cashDiff')).toHaveText('R$ 0,00');
+
+  const record=await page.evaluate(()=>currentRecord('2026-09-01'));
+  expect(record.sales).toBe(330);
+  expect(record.paymentTotal).toBe(330);
+  expect(record.expectedCash).toBe(300);
+  expect(record.cashDifference).toBe(0);
+
+  await page.locator('#saveTopBtn').click();
+  await confirmSaveWarningIfNeeded(page);
+  await expect(page.locator('#toast')).toContainText('salvo',{timeout:5000});
+
+  await selectDate(page,'2026-09-02');
+  expect(await page.evaluate(()=>document.getElementById('opening').value)).toBe('300');
+});
+
 test('dia 01 é manual e dias seguintes recebem saldo inicial automático',async({page})=>{
   await openCleanApp(page);
   await login(page);
