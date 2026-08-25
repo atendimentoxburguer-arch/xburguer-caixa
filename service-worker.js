@@ -1,4 +1,4 @@
-const CACHE_NAME = "xburguer-caixa-native-v4";
+const CACHE_NAME = "xburguer-caixa-native-v5-finance-4.18.3";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
   "./",
@@ -55,9 +55,9 @@ const PRECACHE = [
   "./automatic-conference.js",
   "./bread-summary.js",
   "./bread-start-final.js",
-  "./cash-conference-help.js",
   "./backup-protection.js",
   "./business-rules-integration.js",
+  "./financial-integrity.js",
   "./security-hardening.js",
   "./e2e-adapter.js",
   "./e2e-security-adapter.js",
