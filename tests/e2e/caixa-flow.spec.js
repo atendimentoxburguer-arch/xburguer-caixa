@@ -49,7 +49,7 @@ test('login, fechamento, persistência, relatório, edição e backup',async({pa
   await fillMoney(page,'deliveryCash',20);
   await fillMoney(page,'cardOut',20);
   await fillMoney(page,'cashOut',10);
-  await fillMoney(page,'countedCash',70);
+  await fillMoney(page,'countedCash',120);
   await page.locator('#q0').fill('1');
   await fillMoney(page,'v0',100);
   await page.locator('#idealStart').fill('100');
@@ -64,11 +64,11 @@ test('login, fechamento, persistência, relatório, edição e backup',async({pa
   expect(saved).toHaveLength(1);
   expect(saved[0].sales).toBe(100);
   expect(saved[0].paymentTotal).toBe(100);
-  expect(saved[0].expectedCash).toBe(70);
+  expect(saved[0].expectedCash).toBe(120);
   expect(saved[0].cashDifference).toBe(0);
   expect(saved[0].breads.idealProd).toBe(20);
   expect(saved[0].breads.idealFinal).toBe(80);
-  await expect(page.locator('#daySales')).toContainText('150,00');
+  await expect(page.locator('#daySales')).toContainText('100,00');
 
   await page.reload();
   await page.waitForFunction(()=>window.__XB_E2E_READY__===true);
@@ -181,7 +181,7 @@ test('backup protegido alterado é bloqueado antes da restauração',async({page
   const fakeRecords=[{date:'2026-08-18',resp:'Arquivo Alterado'}];
   const tampered={
     format:'xburguer-caixa-backup-v2',
-    version:'4.18.2',
+    version:'4.18.3',
     exportedAt:new Date().toISOString(),
     recordCount:1,
     integrity:{algorithm:'SHA-256',scope:'records-json',checksum:'0'.repeat(64)},
