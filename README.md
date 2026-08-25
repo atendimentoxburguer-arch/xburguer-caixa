@@ -77,7 +77,7 @@ O **Acumulado do mês** soma as produções calculadas no mês. O campo legado *
 
 ## Regras financeiras atuais
 
-O **Saldo Inicial não é venda** e também não é uma forma de pagamento do movimento do dia. Ele representa somente o dinheiro físico que já estava na gaveta no início do fechamento.
+O Saldo Inicial **não é venda** e também não é uma forma de pagamento do movimento do dia. Ele representa somente o dinheiro físico que já estava na gaveta no início do fechamento.
 
 As regras canônicas são:
 
