@@ -5,19 +5,24 @@ const rules=require('../../business-rules.js');
 test('pagamentos e resumo financeiro não tratam saldo inicial como venda',()=>{
   const record={opening:50,cash:60,deliveryCash:20,cardOut:20,onlinePayment:0,deliveryCard:0,cashOut:10};
   assert.equal(rules.paymentTotal(record),100);
-  assert.equal(rules.expectedCash(record),70);
   assert.equal(rules.financialSummaryTotal(record),100);
 });
 
-test('conferência física exclui saldo inicial e respeita contagem opcional',()=>{
-  const base={opening:500,cash:60,deliveryCash:20,cashOut:10,countedCash:70};
+test('dinheiro esperado inclui saldo inicial sem transformá-lo em venda',()=>{
+  const record={opening:50,cash:60,deliveryCash:20,cashOut:10};
+  assert.equal(rules.expectedCash(record),120);
+  assert.equal(rules.nextOpeningBalance(record),120);
+});
+
+test('conferência física usa saldo inicial e respeita contagem opcional',()=>{
+  const base={opening:500,cash:60,deliveryCash:20,cashOut:10,countedCash:570};
   const verified=rules.applyCashVerification(base,true);
-  assert.equal(verified.expectedCash,70);
+  assert.equal(verified.expectedCash,570);
   assert.equal(verified.cashDifference,0);
   assert.equal(verified.cashCountVerified,true);
 
   const optional=rules.applyCashVerification({...base,countedCash:999},false);
-  assert.equal(optional.expectedCash,70);
+  assert.equal(optional.expectedCash,570);
   assert.equal(optional.countedCash,0);
   assert.equal(optional.cashDifference,0);
 });
@@ -37,11 +42,11 @@ test('backup legado de pão continua compatível',()=>{
   assert.equal(ideal.production,25);
 });
 
-test('normalização calcula vendas, resultado e diferença de pagamentos uma única vez',()=>{
+test('normalização calcula vendas, resultado e pagamentos sem saldo inicial',()=>{
   const record=rules.normalizeRecord({
     opening:50,
     cash:60,deliveryCash:20,cardOut:20,onlinePayment:0,deliveryCard:0,cashOut:10,
-    countedCash:70,cashCountVerified:true,
+    countedCash:120,cashCountVerified:true,
     channels:[{name:'Hot',q:2,v:100}],
     expenses:[{d:'Gás',val:30}],
     breads:{idealStart:100,idealFinal:80,gourmetStart:50,gourmetFinal:40}
@@ -53,7 +58,7 @@ test('normalização calcula vendas, resultado e diferença de pagamentos uma ú
   assert.equal(record.paymentTotal,100);
   assert.equal(record.paymentDifference,0);
   assert.equal(record.summaryTotal,100);
-  assert.equal(record.expectedCash,70);
+  assert.equal(record.expectedCash,120);
   assert.equal(record.cashDifference,0);
 });
 
