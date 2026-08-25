@@ -30,7 +30,7 @@ jobs:
 
           root = Path('.')
           errors = []
-          app_version = '4.18.2'
+          app_version = '4.18.3'
 
           def need(condition, message):
               if not condition:
@@ -79,11 +79,11 @@ jobs:
           need("SCOPE='/xburguer-caixa/'" in pwa_register, 'Registrador perdeu o escopo exclusivo do Caixa.')
           need('manifest.webmanifest?v=pwa-caixa-native-4' in caixa, 'Tela principal não usa o manifesto oficial.')
           need('pwa-register.js?v=4.18.2-pwa4' in caixa, 'Tela principal não registra o PWA diretamente.')
-          need('const CACHE_NAME = "xburguer-caixa-native-v4";' in sw, 'Cache oficial do PWA foi alterado.')
+          need('const CACHE_NAME = "xburguer-caixa-native-v5-finance-4.18.3";' in sw, 'Cache oficial do PWA não corresponde à revisão financeira atual.')
           need('const APP_PATH = "/xburguer-caixa/";' in sw, 'Service Worker perdeu o caminho exclusivo.')
           need('service-worker.js?v=native-4' in legacy, 'Service Worker legado não aponta para a revisão atual.')
 
-          # Todos os recursos locais carregados pela tela precisam existir e estar no precache.
+          # Todo recurso local carregado pela tela precisa existir e estar no precache.
           local_refs = set()
           for ref in re.findall(r'(?:src|href)="([^"]+)"', caixa):
               if ref.startswith(('http://','https://','data:','#')):
@@ -97,11 +97,12 @@ jobs:
               need(f'"./{ref}"' in sw, f'Recurso local fora do precache offline: {ref}')
           need('caches.match(' not in sw, 'Service Worker não deve pesquisar caches globais da origem.')
 
-          # As regras canônicas devem estar instaladas antes do bootstrap do app.
+          # Ordem: regras puras e integridade financeira precisam estar instaladas antes do app5.
           app5_pos = caixa.find('app5.js')
-          for name in ('delivery-cash.js','automatic-conference.js','bread-summary.js','bread-start-final.js','cash-conference-help.js'):
+          for name in ('business-rules.js','delivery-cash.js','automatic-conference.js','bread-summary.js','bread-start-final.js','business-rules-integration.js','financial-integrity.js'):
               pos = caixa.find(name)
               need(pos >= 0 and pos < app5_pos, f'{name} precisa carregar antes do app5.js.')
+          need(caixa.find('business-rules.js') < caixa.find('business-rules-integration.js') < caixa.find('financial-integrity.js'), 'Ordem das regras financeiras canônicas foi alterada.')
           need(caixa.find('identity-guard.js') < caixa.find('@supabase/supabase-js'), 'Trava de identidade precisa carregar antes do Supabase.')
           need(caixa.find('system-hardening.js') < caixa.find('data-consistency.js'), 'Normalização deve carregar depois do hardening.')
 
@@ -117,17 +118,27 @@ jobs:
           need('trnngxezppeembrvxkhh.supabase.co' in app1, 'Frontend não aponta para o Supabase oficial.')
 
           hardening = read('system-hardening.js')
-          need(f"const XB_APP_VERSION='{app_version}';" in hardening, 'Versão interna do hardening divergente.')
           need('pageSize=500' in hardening, 'Histórico perdeu paginação de 500 registros.')
           need('xbIsNetworkError' in hardening, 'Proteção de sessão contra falhas de rede ausente.')
           need('validateBackupRecords=function' in hardening, 'Validação completa de backup ausente.')
-          need("Number(rec.cash||0)+Number(rec.deliveryCash||0)-Number(rec.cashOut||0)" in hardening, 'Conferência física não inclui Dinheiro (Entregas).')
           need("'deliveryCash'" in hardening, 'Backup/hardening não reconhece Dinheiro (Entregas).')
+
+          rules = read('business-rules.js')
+          need("const VERSION='4.18.3';" in rules, 'Módulo canônico está com versão incorreta.')
+          need('num(record.opening)+' in rules and 'num(record.cash)+' in rules and 'num(record.deliveryCash)-' in rules and 'num(record.cashOut)' in rules, 'Dinheiro esperado precisa incluir saldo inicial, dinheiro, entregas e retiradas.')
+          need('function financialSummaryTotal(record={})' in rules and 'return paymentTotal(record);' in rules, 'Resumo financeiro não pode incluir saldo inicial como pagamento/venda.')
+          need('function nextOpeningBalance(previousRecord={})' in rules and 'Math.max(0,expectedCash(previousRecord))' in rules, 'Saldo do próximo fechamento não usa o dinheiro físico remanescente.')
+
+          integrity = read('financial-integrity.js')
+          need("const VERSION='4.18.3';" in integrity, 'Camada de integridade financeira está com versão incorreta.')
+          need("channels.reduce((total,_,i)=>total+value('v'+i),0)" in integrity, 'Vendas devem ser calculadas exclusivamente pelos canais.')
+          need("value('cash')+value('deliveryCash')+value('cardOut')+value('online')+value('deliveryCard')" in integrity, 'Pagamentos devem excluir saldo inicial.')
+          need("value('opening')+value('cash')+value('deliveryCash')-value('cashOut')" in integrity, 'Dinheiro esperado deve incluir saldo inicial sem transformá-lo em venda.')
+          need("byId('daySales').textContent=money(sales)" in integrity, 'Total de vendas visual não está protegido pela regra canônica.')
 
           delivery = read('delivery-cash.js')
           need('delivery_cash_sales' in delivery, 'Frontend não mapeia Dinheiro (Entregas) do banco.')
           need("record.deliveryCash=value('deliveryCash')" in delivery, 'Fechamento não salva Dinheiro (Entregas).')
-          need("value('cash')+delivery-value('cashOut')" in delivery, 'Conferência física do módulo de entregas está incorreta.')
 
           currency = read('currency-format.js')
           need("'deliveryCash'" in currency, 'Campo Dinheiro (Entregas) não recebe formatação BRL.')
@@ -145,10 +156,6 @@ jobs:
           need('gourmetProd:gourmetStart-gourmetFinal' in bread_rule, 'Registro do Pão Gourmet não calcula produção corretamente.')
           need('O estoque final do ${name} não pode ser maior que o estoque inicial.' in bread_rule, 'Validação de estoque final maior que inicial foi removida.')
 
-          help_js = read('cash-conference-help.js')
-          need("num('cash')+num('deliveryCash')-num('cashOut')" in help_js, 'Resumo visual não inclui dinheiro de entregas na gaveta.')
-          need("num('opening')+paymentNow()" in help_js, 'Total do Resumo financeiro não inclui saldo inicial.')
-
           realtime = read('realtime.js')
           need('realtimeStartPromise' in realtime, 'Realtime não serializa tentativas de conexão.')
           need('nextReconnectDelay' in realtime, 'Realtime não possui backoff de reconexão.')
@@ -164,9 +171,10 @@ jobs:
           need('openConfirmModal' in app5, 'Confirmações internas foram removidas.')
 
           readme = read('README.md')
-          need('Versão funcional atual: **4.18.2**' in readme, 'README está com versão incorreta.')
+          need(f'Versão funcional atual: **{app_version}**' in readme, 'README está com versão incorreta.')
+          need('Saldo Inicial **não é venda**' in readme, 'README não documenta que saldo inicial fica fora das vendas.')
+          need('Dinheiro previsto = Saldo Inicial + Dinheiro (Caixa) + Dinheiro (Entregas) - retiradas para despesas' in readme, 'README não documenta corretamente a conferência física.')
           need('Produção = Estoque inicial - Estoque final' in readme, 'README não documenta a regra atual dos pães.')
-          need('Dinheiro (Caixa) + Dinheiro (Entregas) - retiradas para despesas' in readme, 'README não documenta a conferência física atual.')
 
           runtime_files = [p for p in root.glob('*.js')] + [root/'index.html', root/'caixa.html', root/'manifest.webmanifest']
           forbidden = ['/xburguer-controle/', 'xburguer-consumo-', 'rrslolruacewjijlhpdc']
@@ -184,5 +192,5 @@ jobs:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
 
-          print('OK: Caixa validado com PWA, isolamento, delivery cash, pães Inicial/Final, backup e Realtime resiliente.')
+          print('OK: Caixa validado com PWA, isolamento, regra financeira canônica, pães, backup e Realtime resiliente.')
           PY
