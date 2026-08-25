@@ -2,7 +2,7 @@
 
 Este repositório contém **somente o sistema X-Burguer Caixa**.
 
-Versão funcional atual: **4.18.2**.
+Versão funcional atual: **4.18.3**.
 
 - GitHub Pages: `/xburguer-caixa/`
 - PWA ID: `/xburguer-caixa/caixa-oficial`
@@ -63,7 +63,7 @@ O snapshot interno é uma segunda rede de segurança e não substitui a cópia e
 - a tela principal usa Content Security Policy para limitar scripts, conexões, frames, objetos e outros recursos;
 - a biblioteca Supabase JS usada pelo Realtime fica fixada em uma versão auditada, evitando atualização silenciosa por alias móvel;
 - o bootstrap da página inicial não utiliza JavaScript inline;
-- o CI possui uma validação específica para impedir regressões nas proteções acima e procurar padrões de credenciais privadas no código de runtime.
+- o CI possui validações para impedir regressões nas regras financeiras, PWA, isolamento e segurança.
 
 A chave `sb_publishable_...` presente no frontend é uma **chave publicável do Supabase**. Chaves `service_role`, `sb_secret_...`, senhas, tokens privados e backups reais não devem ser adicionados ao repositório.
 
@@ -77,7 +77,17 @@ O **Acumulado do mês** soma as produções calculadas no mês. O campo legado *
 
 ## Regras financeiras atuais
 
-O **Total de Vendas Geral** do Resumo financeiro é independente do total de **Vendas por canal** e soma os valores do próprio bloco financeiro, incluindo o saldo inicial.
+O **Saldo Inicial não é venda** e também não é uma forma de pagamento do movimento do dia. Ele representa somente o dinheiro físico que já estava na gaveta no início do fechamento.
+
+As regras canônicas são:
+
+- `Vendas = soma exclusiva das vendas por canal`;
+- `Pagamentos = Dinheiro (Caixa) + Dinheiro (Entregas) + Cartão (Loja) + Cartão (Entregas) + Pix/Apps`;
+- `Resultado = Vendas - Despesas`;
+- `Dinheiro previsto = Saldo Inicial + Dinheiro (Caixa) + Dinheiro (Entregas) - retiradas para despesas`;
+- `Diferença física = Dinheiro contado - Dinheiro previsto`, quando a contagem física for informada.
+
+Assim, o saldo inicial permanece disponível para a conferência da gaveta e para formar o saldo seguinte, mas **nunca aumenta o total de vendas, faturamento, pagamentos ou resultado do dia**.
 
 A partir de **24/08/2026**, o **Saldo Inicial** segue uma cadeia de fechamentos dentro de cada mês, sem exigir um registro para todos os dias do calendário:
 
@@ -86,13 +96,6 @@ A partir de **24/08/2026**, o **Saldo Inicial** segue uma cadeia de fechamentos 
 - o cálculo usa o **último fechamento anterior que realmente estiver salvo no mesmo mês**, mesmo que existam dias sem fechamento entre eles;
 - dias sem movimento ou sem fechamento podem ser pulados e não bloqueiam lançamentos em datas posteriores;
 - se ainda não existir nenhum fechamento anterior no mês e o primeiro registro for feito depois do dia 01, esse primeiro Saldo Inicial fica manual;
-- ao existir uma sequência de fechamentos salvos, alterações anteriores propagam o novo saldo para o próximo fechamento salvo do mês;
-- o histórico anterior à implantação da regra não é recalculado automaticamente.
+- ao existir uma sequência de fechamentos salvos, alterações anteriores propagam o novo saldo para o próximo fechamento salvo do mês.
 
 `Saldo Inicial do próximo fechamento salvo = máximo de R$ 0,00 entre (Saldo Inicial anterior + Dinheiro do Caixa anterior + Dinheiro das Entregas anterior - dinheiro retirado para despesas no fechamento anterior)`
-
-A conferência física da gaveta continua usando uma regra separada:
-
-`Dinheiro previsto = Dinheiro (Caixa) + Dinheiro (Entregas) - retiradas para despesas`
-
-O saldo inicial não entra na conferência física da gaveta.
