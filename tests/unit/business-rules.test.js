@@ -2,11 +2,11 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const rules=require('../../business-rules.js');
 
-test('pagamentos e resumo financeiro seguem a regra oficial',()=>{
+test('pagamentos e resumo financeiro não tratam saldo inicial como venda',()=>{
   const record={opening:50,cash:60,deliveryCash:20,cardOut:20,onlinePayment:0,deliveryCard:0,cashOut:10};
   assert.equal(rules.paymentTotal(record),100);
   assert.equal(rules.expectedCash(record),70);
-  assert.equal(rules.financialSummaryTotal(record),150);
+  assert.equal(rules.financialSummaryTotal(record),100);
 });
 
 test('conferência física exclui saldo inicial e respeita contagem opcional',()=>{
@@ -52,7 +52,7 @@ test('normalização calcula vendas, resultado e diferença de pagamentos uma ú
   assert.equal(record.result,70);
   assert.equal(record.paymentTotal,100);
   assert.equal(record.paymentDifference,0);
-  assert.equal(record.summaryTotal,150);
+  assert.equal(record.summaryTotal,100);
   assert.equal(record.expectedCash,70);
   assert.equal(record.cashDifference,0);
 });
@@ -64,14 +64,16 @@ test('validação canônica rejeita estoque final maior que inicial',()=>{
   assert.match(result,/estoque final do Pão Ideal/i);
 });
 
-test('agregação mensal mantém resumo financeiro separado das vendas por canal',()=>{
+test('agregação mensal mantém saldo inicial separado das vendas e pagamentos',()=>{
   const total=rules.aggregate([
     {opening:50,cash:100,channels:[{q:1,v:100}],expenses:[],breads:{}},
     {opening:30,deliveryCash:40,cardOut:60,channels:[{q:2,v:100}],expenses:[{d:'x',val:20}],breads:{}}
   ]);
+  assert.equal(total.opening,80);
   assert.equal(total.sales,200);
   assert.equal(total.orders,3);
   assert.equal(total.expense,20);
   assert.equal(total.result,180);
-  assert.equal(total.summaryTotal,280);
+  assert.equal(total.paymentTotal,200);
+  assert.equal(total.summaryTotal,200);
 });
