@@ -42,7 +42,7 @@
   }
 
   function financialSummaryTotal(record={}){
-    return roundMoney(num(record.opening)+paymentTotal(record));
+    return paymentTotal(record);
   }
 
   function channelSales(record={}){
