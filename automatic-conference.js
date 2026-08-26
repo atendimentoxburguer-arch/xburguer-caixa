@@ -1,12 +1,17 @@
-/* X-Burguer Caixa — conferência automática + contagem física opcional v4.18.2 */
+/* X-Burguer Caixa — conferência automática + contagem física opcional v4.18.3 */
 (function(){
-  const AUTO_VERSION='4.18.2';
+  const AUTO_VERSION=String(window.XBBusinessRules?.VERSION||window.XB_APP_VERSION||'4.18.3');
   const roundMoney=n=>Math.round((Number(n||0)+Number.EPSILON)*100)/100;
   const countedWasEntered=()=>String(document.getElementById('countedCash')?.value??'').trim()!=='';
 
   function applyCashVerificationRule(record,verifiedOverride){
     if(!record)return record;
-    const expected=roundMoney(Number(record.cash||0)+Number(record.deliveryCash||0)-Number(record.cashOut||0));
+    if(window.XBBusinessRules?.applyCashVerification){
+      return window.XBBusinessRules.applyCashVerification(record,verifiedOverride);
+    }
+    const expected=roundMoney(
+      Number(record.opening||0)+Number(record.cash||0)+Number(record.deliveryCash||0)-Number(record.cashOut||0)
+    );
     let verified=verifiedOverride;
     if(verified===undefined){
       if(record.cashCountVerified!==undefined)verified=!!record.cashCountVerified;
@@ -128,9 +133,7 @@
       const result=originalRefreshMonthly.apply(this,arguments);
       document.querySelectorAll('#monthlyPaymentsTable tr').forEach(row=>{
         const first=row.querySelector('td');
-        if(first?.textContent?.trim()==='Diferenças de caixa (líquido)'){
-          first.textContent='Diferenças físicas informadas';
-        }
+        if(first?.textContent?.trim()==='Diferenças de caixa (líquido)')first.textContent='Diferenças físicas informadas';
       });
       const ym=document.getElementById('monthPicker')?.value||monthNow();
       const month=monthRecords(ym).map(normalize).sort((a,b)=>a.date.localeCompare(b.date));
@@ -144,17 +147,6 @@
   }
 
   window.XB_APP_VERSION=AUTO_VERSION;
-  if(typeof exportJSON==='function'){
-    exportJSON=function(){
-      const data={version:AUTO_VERSION,exportedAt:new Date().toISOString(),records:load()};
-      download(`xburguer-backup-${isoToday()}.json`,JSON.stringify(data,null,2),'application/json');
-      const now=new Date().toLocaleString('pt-BR');
-      localStorage.setItem(BACKUP_KEY,now);
-      refreshBackup();
-      toast('Backup JSON exportado.');
-    };
-  }
-
   function applyVersion(){
     document.documentElement.dataset.appVersion=AUTO_VERSION;
     document.querySelectorAll('.reconcile').forEach(item=>{
