@@ -6,18 +6,9 @@
 
   const byId=id=>document.getElementById(id);
 
-  function wireInput(input){
-    if(!input||input.dataset.xbDeliveryWired==='1')return input;
-    input.dataset.xbDeliveryWired='1';
-    input.addEventListener('input',()=>{
-      if(typeof onFormInput==='function')onFormInput();
-    });
-    return input;
-  }
-
   function ensureDeliveryCashField(){
     const existing=byId('deliveryCash');
-    if(existing)return wireInput(existing);
+    if(existing)return existing;
 
     const cash=byId('cash');
     const row=cash?.closest('.data-row');
@@ -27,7 +18,7 @@
     deliveryRow.className='data-row';
     deliveryRow.innerHTML='<span>Dinheiro (Entregas)</span><input id="deliveryCash" type="number" min="0" step="0.01" inputmode="decimal" placeholder="R$" aria-label="Dinheiro recebido nas entregas"><span class="money" id="aDeliveryCash">R$ 0,00</span>';
     row.insertAdjacentElement('afterend',deliveryRow);
-    return wireInput(byId('deliveryCash'));
+    return byId('deliveryCash');
   }
 
   function fixBreadPlaceholders(){
