@@ -1,5 +1,7 @@
 /* X-Burguer Caixa — regras de negócio canônicas v4.18.3
-   Módulo puro: não acessa DOM, rede, localStorage ou Supabase. */
+   Módulo puro: não acessa DOM, rede, localStorage ou Supabase.
+   Regra financeira: Venda = Resumo Financeiro/Formas de pagamento.
+   Vendas por canal são somente demonstrativas e não entram nos totais financeiros. */
 (function(root,factory){
   const api=factory();
   if(typeof module==='object'&&module.exports)module.exports=api;
@@ -43,16 +45,24 @@
     return /^\d{4}-\d{2}-01$/.test(String(date||''));
   }
 
-  // Resumo de pagamentos nunca inclui saldo inicial.
+  // Venda oficial do sistema: soma das formas de pagamento do Resumo Financeiro.
+  // Saldo inicial nunca entra como venda.
   function financialSummaryTotal(record={}){
     return paymentTotal(record);
   }
 
+  // Vendas por canal são um demonstrativo operacional independente.
   function channelSales(record={}){
     if(Array.isArray(record.channels)){
       return roundMoney(record.channels.reduce((total,item)=>total+num(item?.v),0));
     }
-    return roundMoney(record.sales);
+    if(record.channelSales!==undefined&&record.channelSales!==null){
+      return roundMoney(record.channelSales);
+    }
+    // Compatibilidade restrita com backups legados que identificavam explicitamente
+    // a base de vendas como canais.
+    if(record.salesBasis==='channel')return roundMoney(record.sales);
+    return 0;
   }
 
   function channelOrders(record={}){
@@ -145,14 +155,20 @@
       out.expenses=out.expenses.map(item=>({...item,val:roundMoney(item?.val)}));
     }
 
-    out.sales=channelSales(out);
+    const demonstrativeChannelSales=channelSales(out);
+    const financialSales=financialSummaryTotal(out);
+
+    out.channelSales=demonstrativeChannelSales;
+    out.sales=financialSales;
+    out.salesBasis='financial-summary';
     out.orders=channelOrders(out);
     out.expense=expenseTotal(out);
     out.result=roundMoney(out.sales-out.expense);
     out.balance=out.result;
-    out.paymentTotal=paymentTotal(out);
-    out.paymentDifference=roundMoney(out.paymentTotal-out.sales);
-    out.summaryTotal=financialSummaryTotal(out);
+    out.paymentTotal=financialSales;
+    // Conferência apenas informativa: pagamentos versus demonstrativo dos canais.
+    out.paymentDifference=roundMoney(out.paymentTotal-out.channelSales);
+    out.summaryTotal=financialSales;
     out.breads=normalizeBreads(out.breads||{});
     out=applyCashVerification(out,options.cashCountVerified);
     return out;
@@ -180,13 +196,15 @@
       acc.onlinePayment=roundMoney(acc.onlinePayment+r.onlinePayment);
       acc.deliveryCard=roundMoney(acc.deliveryCard+r.deliveryCard);
       acc.sales=roundMoney(acc.sales+r.sales);
+      acc.channelSales=roundMoney(acc.channelSales+r.channelSales);
       acc.expense=roundMoney(acc.expense+r.expense);
       acc.result=roundMoney(acc.result+r.result);
       acc.paymentTotal=roundMoney(acc.paymentTotal+r.paymentTotal);
       acc.summaryTotal=roundMoney(acc.summaryTotal+r.summaryTotal);
+      acc.paymentDifference=roundMoney(acc.paymentDifference+r.paymentDifference);
       acc.orders+=r.orders;
       return acc;
-    },{opening:0,cash:0,deliveryCash:0,cardOut:0,onlinePayment:0,deliveryCard:0,sales:0,expense:0,result:0,paymentTotal:0,summaryTotal:0,orders:0});
+    },{opening:0,cash:0,deliveryCash:0,cardOut:0,onlinePayment:0,deliveryCard:0,sales:0,channelSales:0,expense:0,result:0,paymentTotal:0,summaryTotal:0,paymentDifference:0,orders:0});
   }
 
   return {
