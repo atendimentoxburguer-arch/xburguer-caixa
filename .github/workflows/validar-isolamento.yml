@@ -28,169 +28,193 @@ jobs:
           from pathlib import Path
           import json, re, struct, sys
 
-          root = Path('.')
-          errors = []
-          app_version = '4.18.3'
+          root=Path('.')
+          errors=[]
+          app_version='4.18.3'
 
-          def need(condition, message):
-              if not condition:
-                  errors.append(message)
+          def need(ok,msg):
+              if not ok: errors.append(msg)
 
           def read(name):
-              path = root / name
+              path=root/name
               if not path.exists():
                   errors.append(f'Arquivo obrigatório ausente: {name}')
                   return ''
-              return path.read_text(encoding='utf-8', errors='ignore')
+              return path.read_text(encoding='utf-8',errors='ignore')
 
           def png_size(path):
-              data = path.read_bytes()
-              if not data.startswith(b'\x89PNG\r\n\x1a\n') or len(data) < 24:
-                  return None
-              return struct.unpack('>II', data[16:24])
+              data=path.read_bytes()
+              if not data.startswith(b'\x89PNG\r\n\x1a\n') or len(data)<24:return None
+              return struct.unpack('>II',data[16:24])
 
-          manifest = json.loads(read('manifest.webmanifest'))
-          need(manifest.get('id') == '/xburguer-caixa/caixa-oficial', 'Manifest ID oficial foi alterado.')
-          need(manifest.get('scope') == '/xburguer-caixa/', 'Escopo do PWA foi alterado.')
-          need(manifest.get('start_url') == '/xburguer-caixa/caixa.html?app=caixa', 'start_url incorreto.')
-          need(manifest.get('display') == 'standalone', 'PWA precisa permanecer standalone.')
-          need(manifest.get('prefer_related_applications') is False, 'PWA deve preferir instalação web nativa.')
+          manifest=json.loads(read('manifest.webmanifest'))
+          need(manifest.get('id')=='/xburguer-caixa/caixa-oficial','Manifest ID oficial foi alterado.')
+          need(manifest.get('scope')=='/xburguer-caixa/','Escopo do PWA foi alterado.')
+          need(manifest.get('start_url')=='/xburguer-caixa/caixa.html?app=caixa','start_url incorreto.')
+          need(manifest.get('display')=='standalone','PWA precisa permanecer standalone.')
+          need(manifest.get('prefer_related_applications') is False,'PWA deve preferir instalação web nativa.')
 
-          expected_icons = {
-              './icons/xburguer-caixa-rounded-192-v3.png': (192, 192),
-              './icons/xburguer-caixa-maskable-512-v4150.png': (512, 512),
+          expected_icons={
+              './icons/xburguer-caixa-rounded-192-v3.png':(192,192),
+              './icons/xburguer-caixa-maskable-512-v4150.png':(512,512),
           }
-          manifest_icons = {str(i.get('src','')) for i in manifest.get('icons', [])}
-          for src, size in expected_icons.items():
-              need(src in manifest_icons, f'Ícone obrigatório ausente do manifesto: {src}')
-              path = root / src.removeprefix('./')
-              need(path.exists(), f'Ícone obrigatório não existe: {path}')
-              if path.exists():
-                  need(png_size(path) == size, f'Ícone com tamanho incorreto: {path}')
+          manifest_icons={str(i.get('src','')) for i in manifest.get('icons',[])}
+          for src,size in expected_icons.items():
+              need(src in manifest_icons,f'Ícone obrigatório ausente do manifesto: {src}')
+              path=root/src.removeprefix('./')
+              need(path.exists(),f'Ícone obrigatório não existe: {path}')
+              if path.exists():need(png_size(path)==size,f'Ícone com tamanho incorreto: {path}')
 
-          index = read('index.html')
-          caixa = read('caixa.html')
-          pwa_register = read('pwa-register.js')
-          sw = read('service-worker.js')
-          legacy = read('sw.js')
+          index=read('index.html')
+          caixa=read('caixa.html')
+          pwa=read('pwa-register.js')
+          sw=read('service-worker.js')
+          legacy=read('sw.js')
 
-          need('pwa-register.js?v=4.18.2-pwa4' in index, 'Bootstrap não carrega o registrador oficial do PWA.')
-          need("REVISION='native-4'" in pwa_register, 'Revisão oficial do PWA foi alterada.')
-          need("SCOPE='/xburguer-caixa/'" in pwa_register, 'Registrador perdeu o escopo exclusivo do Caixa.')
-          need('manifest.webmanifest?v=pwa-caixa-native-4' in caixa, 'Tela principal não usa o manifesto oficial.')
-          need('pwa-register.js?v=4.18.2-pwa4' in caixa, 'Tela principal não registra o PWA diretamente.')
-          need('const CACHE_NAME = "xburguer-caixa-native-v5-finance-4.18.3";' in sw, 'Cache oficial do PWA não corresponde à revisão financeira atual.')
-          need('const APP_PATH = "/xburguer-caixa/";' in sw, 'Service Worker perdeu o caminho exclusivo.')
-          need('service-worker.js?v=native-4' in legacy, 'Service Worker legado não aponta para a revisão atual.')
+          need('pwa-register.js?v=4.18.3-pwa5' in index,'Bootstrap não carrega a revisão atual do registrador PWA.')
+          need("REVISION='native-5'" in pwa,'Revisão oficial do PWA está incorreta.')
+          need("SCOPE='/xburguer-caixa/'" in pwa,'Registrador perdeu o escopo exclusivo do Caixa.')
+          need('manifest.webmanifest?v=pwa-caixa-native-5' in caixa,'Tela principal não usa a revisão atual do manifesto.')
+          need('pwa-register.js?v=4.18.3-pwa5' in caixa,'Tela principal não registra a revisão atual do PWA.')
+          need('const CACHE_NAME = "xburguer-caixa-native-v6-audit-4.18.3";' in sw,'Cache offline não corresponde à auditoria atual.')
+          need('const APP_PATH = "/xburguer-caixa/";' in sw,'Service Worker perdeu o caminho exclusivo.')
+          need('service-worker.js?v=native-5' in legacy,'Service Worker legado não aponta para a revisão atual.')
+          need('cash-conference-help.js' not in caixa and '"./cash-conference-help.js"' not in sw,'Módulo financeiro legado removido voltou a ser carregado.')
 
           # Todo recurso local carregado pela tela precisa existir e estar no precache.
-          local_refs = set()
-          for ref in re.findall(r'(?:src|href)="([^"]+)"', caixa):
-              if ref.startswith(('http://','https://','data:','#')):
-                  continue
-              clean = ref.split('?', 1)[0].lstrip('./')
-              if not clean:
-                  continue
+          local_refs=set()
+          for ref in re.findall(r'(?:src|href)="([^"]+)"',caixa):
+              if ref.startswith(('http://','https://','data:','#')):continue
+              clean=ref.split('?',1)[0].lstrip('./')
+              if not clean:continue
               local_refs.add(clean)
-              need((root / clean).exists(), f'Recurso referenciado não existe: {clean}')
+              need((root/clean).exists(),f'Recurso referenciado não existe: {clean}')
           for ref in sorted(local_refs):
-              need(f'"./{ref}"' in sw, f'Recurso local fora do precache offline: {ref}')
-          need('caches.match(' not in sw, 'Service Worker não deve pesquisar caches globais da origem.')
+              need(f'"./{ref}"' in sw,f'Recurso local fora do precache offline: {ref}')
+          need('caches.match(' not in sw,'Service Worker não deve pesquisar caches globais da origem.')
 
-          # Ordem: regras puras e integridade financeira precisam estar instaladas antes do app5.
-          app5_pos = caixa.find('app5.js')
-          for name in ('business-rules.js','delivery-cash.js','automatic-conference.js','bread-summary.js','bread-start-final.js','business-rules-integration.js','financial-integrity.js'):
-              pos = caixa.find(name)
-              need(pos >= 0 and pos < app5_pos, f'{name} precisa carregar antes do app5.js.')
-          need(caixa.find('business-rules.js') < caixa.find('business-rules-integration.js') < caixa.find('financial-integrity.js'), 'Ordem das regras financeiras canônicas foi alterada.')
-          need(caixa.find('identity-guard.js') < caixa.find('@supabase/supabase-js'), 'Trava de identidade precisa carregar antes do Supabase.')
-          need(caixa.find('system-hardening.js') < caixa.find('data-consistency.js'), 'Normalização deve carregar depois do hardening.')
+          # Ordem das camadas.
+          app5_pos=caixa.find('app5.js')
+          for name in ('business-rules.js','delivery-cash.js','automatic-conference.js','bread-summary.js','bread-start-final.js','backup-protection.js','business-rules-integration.js','financial-integrity.js'):
+              pos=caixa.find(name)
+              need(pos>=0 and pos<app5_pos,f'{name} precisa carregar antes do app5.js.')
+          need(caixa.find('business-rules.js')<caixa.find('app1.js')<caixa.find('business-rules-integration.js')<caixa.find('financial-integrity.js'),'Ordem das regras financeiras canônicas foi alterada.')
+          need(caixa.find('identity-guard.js')<caixa.find('@supabase/supabase-js'),'Trava de identidade precisa carregar antes do Supabase.')
+          need(caixa.find('system-hardening.js')<caixa.find('data-consistency.js'),'Normalização deve carregar depois do hardening.')
 
-          identity = read('identity-guard.js')
-          need("EXPECTED_PATH='/xburguer-caixa/'" in identity, 'Trava de identidade perdeu o caminho oficial.')
-          need("EXPECTED_SUPABASE_HOST='trnngxezppeembrvxkhh.supabase.co'" in identity, 'Supabase oficial do Caixa foi alterado.')
-          need('validateSupabaseUrl' in identity and 'window.fetch=function' in identity, 'Trava de identidade não protege as conexões Supabase.')
+          identity=read('identity-guard.js')
+          need("EXPECTED_PATH='/xburguer-caixa/'" in identity,'Trava de identidade perdeu o caminho oficial.')
+          need("EXPECTED_SUPABASE_HOST='trnngxezppeembrvxkhh.supabase.co'" in identity,'Supabase oficial do Caixa foi alterado.')
+          need('validateSupabaseUrl' in identity and 'window.fetch=function' in identity,'Trava de identidade não protege as conexões Supabase.')
 
-          storage = read('storage-namespace.js')
-          need("const NS = 'xburguer_caixa::';" in storage, 'Storage não usa namespace exclusivo.')
+          storage=read('storage-namespace.js')
+          need("const NS = 'xburguer_caixa::';" in storage,'Storage não usa namespace exclusivo.')
 
-          app1 = read('app1.js')
-          need('trnngxezppeembrvxkhh.supabase.co' in app1, 'Frontend não aponta para o Supabase oficial.')
+          app1=read('app1.js')
+          need('trnngxezppeembrvxkhh.supabase.co' in app1,'Frontend não aponta para o Supabase oficial.')
+          need('delivery_cash_sales' in app1 and 'cash_count_verified' in app1,'Mapeamento da nuvem perdeu campos financeiros atuais.')
+          need('const pageSize=500' in app1,'Carregamento base perdeu paginação de 500 registros.')
+          need('let importInProgress=false' in app1,'Estado próprio de importação crítica está ausente.')
 
-          hardening = read('system-hardening.js')
-          need('pageSize=500' in hardening, 'Histórico perdeu paginação de 500 registros.')
-          need('xbIsNetworkError' in hardening, 'Proteção de sessão contra falhas de rede ausente.')
-          need('validateBackupRecords=function' in hardening, 'Validação completa de backup ausente.')
-          need("'deliveryCash'" in hardening, 'Backup/hardening não reconhece Dinheiro (Entregas).')
+          app2=read('app2.js')
+          need("const paymentTotal=cash+deliveryCash+n('cardOut')+n('online')+n('deliveryCard')" in app2,'Cálculo-base de pagamentos está incorreto.')
+          need("const expectedCash=opening+cash+deliveryCash-cashOut" in app2,'Cálculo-base de dinheiro esperado não inclui o saldo inicial corretamente.')
+          need("summaryTotal:paymentTotal" in app2,'Resumo financeiro voltou a incluir valor indevido.')
+          need("sales=v.reduce((a,b)=>a+b,0)" in app2,'Vendas-base não estão exclusivas aos canais.')
 
-          rules = read('business-rules.js')
-          need("const VERSION='4.18.3';" in rules, 'Módulo canônico está com versão incorreta.')
-          need('num(record.opening)+' in rules and 'num(record.cash)+' in rules and 'num(record.deliveryCash)-' in rules and 'num(record.cashOut)' in rules, 'Dinheiro esperado precisa incluir saldo inicial, dinheiro, entregas e retiradas.')
-          need('function financialSummaryTotal(record={})' in rules and 'return paymentTotal(record);' in rules, 'Resumo financeiro não pode incluir saldo inicial como pagamento/venda.')
-          need('function nextOpeningBalance(previousRecord={})' in rules and 'Math.max(0,expectedCash(previousRecord))' in rules, 'Saldo do próximo fechamento não usa o dinheiro físico remanescente.')
+          app3=read('app3.js')
+          need('rec.deliveryCash' in app3,'Validação-base não reconhece Dinheiro (Entregas).')
+          need("sbRest('rpc/delete_cash_closing'" in app3,'Exclusão-base não usa o RPC protegido.')
+          need("r.cashCountVerified?br(r.cashDifference||0):'—'" in app3,'Histórico não trata contagem física opcional corretamente.')
+          need("Number(r.cash||0)+Number(r.deliveryCash||0)" in app3,'Dashboard não soma dinheiro do caixa e entregas.')
+          need('onclick=' not in app3,'Histórico voltou a gerar handlers inline.')
 
-          integrity = read('financial-integrity.js')
-          need("const VERSION='4.18.3';" in integrity, 'Camada de integridade financeira está com versão incorreta.')
-          need("channels.reduce((total,_,i)=>total+value('v'+i),0)" in integrity, 'Vendas devem ser calculadas exclusivamente pelos canais.')
-          need("value('cash')+value('deliveryCash')+value('cardOut')+value('online')+value('deliveryCard')" in integrity, 'Pagamentos devem excluir saldo inicial.')
-          need("value('opening')+value('cash')+value('deliveryCash')-value('cashOut')" in integrity, 'Dinheiro esperado deve incluir saldo inicial sem transformá-lo em venda.')
-          need("byId('daySales').textContent=money(sales)" in integrity, 'Total de vendas visual não está protegido pela regra canônica.')
+          app4=read('app4.js')
+          need("(r.opening||0)+(r.cash||0)+(r.deliveryCash||0)-(r.cashOut||0)" in app4,'Relatório diário não usa dinheiro esperado canônico.')
+          need("reportValueRow('Dinheiro — entregas'" in app4,'Relatório diário não detalha dinheiro das entregas.')
+          need("<td>${br(r.deliveryCash||0)}</td>" in app4 and 'colspan="14"' in app4,'Extrato mensal não contém a coluna de dinheiro das entregas.')
+          need("window.XB_APP_VERSION||'4.18.3'" in app4,'Fallback de backup está com versão incorreta.')
 
-          delivery = read('delivery-cash.js')
-          need('delivery_cash_sales' in delivery, 'Frontend não mapeia Dinheiro (Entregas) do banco.')
-          need("record.deliveryCash=value('deliveryCash')" in delivery, 'Fechamento não salva Dinheiro (Entregas).')
+          hardening=read('system-hardening.js')
+          need('pageSize=500' in hardening,'Histórico protegido perdeu paginação.')
+          need('xbIsNetworkError' in hardening,'Proteção de sessão contra falhas de rede ausente.')
+          need('validateBackupRecords=function' in hardening,'Validação completa de backup ausente.')
+          need("Number(rec.opening||0)+Number(rec.cash||0)+Number(rec.deliveryCash||0)-Number(rec.cashOut||0)" in hardening,'Hardening físico não inclui saldo inicial corretamente.')
 
-          currency = read('currency-format.js')
-          need("'deliveryCash'" in currency, 'Campo Dinheiro (Entregas) não recebe formatação BRL.')
+          rules=read('business-rules.js')
+          need("const VERSION='4.18.3';" in rules,'Módulo canônico está com versão incorreta.')
+          need('num(record.opening)+' in rules and 'num(record.cash)+' in rules and 'num(record.deliveryCash)-' in rules and 'num(record.cashOut)' in rules,'Dinheiro esperado canônico está incorreto.')
+          need('function financialSummaryTotal(record={})' in rules and 'return paymentTotal(record);' in rules,'Resumo canônico não pode incluir saldo inicial.')
+          need('function nextOpeningBalance(previousRecord={})' in rules and 'Math.max(0,expectedCash(previousRecord))' in rules,'Saldo seguinte não usa o dinheiro físico remanescente.')
 
-          consistency = read('data-consistency.js')
-          need("breads[prefix+'Final']=final" in consistency, 'Normalização não preserva o estoque final informado.')
-          need("breads[prefix+'Prod']=start-final" in consistency, 'Produção dos pães não é calculada por Inicial - Final.')
+          integrity=read('financial-integrity.js')
+          need("channels.reduce((total,_,i)=>total+value('v'+i),0)" in integrity,'Integridade: vendas não estão exclusivas aos canais.')
+          need("value('cash')+value('deliveryCash')+value('cardOut')+value('online')+value('deliveryCard')" in integrity,'Integridade: pagamentos incluem/excluem campos incorretos.')
+          need("value('opening')+value('cash')+value('deliveryCash')-value('cashOut')" in integrity,'Integridade: dinheiro esperado está incorreto.')
 
-          bread_summary = read('bread-summary.js')
-          need("const production=hasStart&&hasFinal?start-final:0" in bread_summary, 'Resumo de pães não calcula produção por Inicial - Final.')
-          need("<span>Est. final</span><span>Produção</span><span>Acum. mês</span>" in bread_summary, 'Cabeçalho do controle de pães está desatualizado.')
+          delivery=read('delivery-cash.js')
+          need('id="deliveryCash"' in delivery and 'Dinheiro (Entregas)' in delivery,'Campo Dinheiro (Entregas) não é criado corretamente.')
+          need('daySales' not in delivery and 'paymentTotal' not in delivery,'Módulo visual de entregas voltou a sobrescrever regras financeiras.')
 
-          bread_rule = read('bread-start-final.js')
-          need('idealProd:idealStart-idealFinal' in bread_rule, 'Registro do Pão Ideal não calcula produção corretamente.')
-          need('gourmetProd:gourmetStart-gourmetFinal' in bread_rule, 'Registro do Pão Gourmet não calcula produção corretamente.')
-          need('O estoque final do ${name} não pode ser maior que o estoque inicial.' in bread_rule, 'Validação de estoque final maior que inicial foi removida.')
+          backup=read('backup-protection.js')
+          for target in ('rpc/save_cash_closing','rpc/delete_cash_closing','rpc/restore_cash_backup','rpc/restore_deleted_cash_closing'):
+              need(target in backup,f'Snapshot automático não cobre operação crítica: {target}')
+          need("format:'xburguer-caixa-backup-v2'" not in backup or 'FORMAT=' in backup,'Backup protegido perdeu formato centralizado.')
+          need("algorithm:'SHA-256'" in backup,'Backup protegido perdeu SHA-256.')
 
-          realtime = read('realtime.js')
-          need('realtimeStartPromise' in realtime, 'Realtime não serializa tentativas de conexão.')
-          need('nextReconnectDelay' in realtime, 'Realtime não possui backoff de reconexão.')
-          need('},30000);' in realtime, 'Verificação periódica do Realtime está agressiva demais.')
+          consistency=read('data-consistency.js')
+          need("breads[prefix+'Final']=final" in consistency,'Normalização não preserva estoque final.')
+          need("breads[prefix+'Prod']=start-final" in consistency,'Produção de pães não usa Inicial - Final.')
 
-          online_css = read('online-orders-equal.css')
-          need('minmax(0,1fr) minmax(0,1fr)' in online_css, 'Quantidade e valor dos pedidos online deixaram de ter larguras iguais.')
+          bread_rule=read('bread-start-final.js')
+          need('idealProd:idealStart-idealFinal' in bread_rule and 'gourmetProd:gourmetStart-gourmetFinal' in bread_rule,'Registro de pães não calcula produção corretamente.')
+          need('O estoque final do ${name} não pode ser maior que o estoque inicial.' in bread_rule,'Validação de pães foi removida.')
+          need('exportCSV=function' not in bread_rule and 'exportJSON=function' not in bread_rule,'Módulo de pães não deve sobrescrever exportações globais.')
 
-          app5 = read('app5.js')
-          need('rpc/restore_cash_backup' in app5, 'Restauração atômica de backup não está ativa.')
-          need('enterOfflineMode' in app5, 'Modo offline seguro não está ativo.')
-          need('Descartar e carregar' in app5, 'Proteção de rascunho local foi removida.')
-          need('openConfirmModal' in app5, 'Confirmações internas foram removidas.')
+          realtime=read('realtime.js')
+          need('realtimeStartPromise' in realtime and 'nextReconnectDelay' in realtime,'Realtime perdeu serialização/backoff.')
+          need("const realtimeDisabled=()=>window.__XB_E2E__===true" in realtime,'Realtime não está explicitamente isolado do E2E.')
+          need('if(realtimeDisabled())return false' in realtime,'Realtime ainda pode iniciar no E2E.')
+          need('},30000);' in realtime,'Verificação periódica do Realtime está agressiva demais.')
 
-          readme = read('README.md')
-          need(f'Versão funcional atual: **{app_version}**' in readme, 'README está com versão incorreta.')
-          need('Saldo Inicial **não é venda**' in readme, 'README não documenta que saldo inicial fica fora das vendas.')
-          need('Dinheiro previsto = Saldo Inicial + Dinheiro (Caixa) + Dinheiro (Entregas) - retiradas para despesas' in readme, 'README não documenta corretamente a conferência física.')
-          need('Produção = Estoque inicial - Estoque final' in readme, 'README não documenta a regra atual dos pães.')
+          system_guard=read('system-guard.js')
+          need('importInProgress' in system_guard and "importBtn')?.disabled" not in system_guard,'Proteção crítica confunde arquivo inválido com importação ativa.')
 
-          runtime_files = [p for p in root.glob('*.js')] + [root/'index.html', root/'caixa.html', root/'manifest.webmanifest']
-          forbidden = ['/xburguer-controle/', 'xburguer-consumo-', 'rrslolruacewjijlhpdc']
-          for path in runtime_files:
-              if not path.exists():
-                  continue
-              text = path.read_text(encoding='utf-8', errors='ignore')
+          app5=read('app5.js')
+          need('rpc/restore_cash_backup' in app5,'Restauração atômica de backup não está ativa.')
+          need('importInProgress=true' in app5 and 'importInProgress=false' in app5,'Estado da importação crítica não é controlado.')
+          need('appRevealTimer' in app5,'Animação de entrada não possui proteção contra corrida com logout.')
+          need('enterOfflineMode' in app5,'Modo offline seguro não está ativo.')
+          need('Descartar e carregar' in app5,'Proteção de rascunho local foi removida.')
+
+          currency=read('currency-format.js')
+          need("'deliveryCash'" in currency,'Campo Dinheiro (Entregas) não recebe formatação BRL.')
+
+          online_css=read('online-orders-equal.css')
+          need('minmax(0,1fr) minmax(0,1fr)' in online_css,'Quantidade e valor dos pedidos online deixaram de ter larguras iguais.')
+
+          readme=read('README.md')
+          need(f'Versão funcional atual: **{app_version}**' in readme,'README está com versão incorreta.')
+          need('Saldo Inicial **não é venda**' in readme,'README não documenta a regra do saldo inicial.')
+          need('Dinheiro previsto = Saldo Inicial + Dinheiro (Caixa) + Dinheiro (Entregas) - retiradas para despesas' in readme,'README não documenta a conferência física.')
+          need('Produção = Estoque inicial - Estoque final' in readme,'README não documenta a regra dos pães.')
+
+          # Isolamento e práticas proibidas.
+          runtime=[p for p in root.glob('*.js')]+[root/'index.html',root/'caixa.html',root/'manifest.webmanifest']
+          forbidden=['/xburguer-controle/','xburguer-consumo-','rrslolruacewjijlhpdc']
+          for path in runtime:
+              if not path.exists():continue
+              text=path.read_text(encoding='utf-8',errors='ignore')
               for token in forbidden:
-                  if token in text:
-                      errors.append(f'{path}: referência proibida ao outro sistema: {token}')
-              if 'window.confirm(' in text:
-                  errors.append(f'{path}: confirmação nativa do navegador encontrada.')
+                  if token in text:errors.append(f'{path}: referência proibida ao outro sistema: {token}')
+              if 'window.confirm(' in text:errors.append(f'{path}: confirmação nativa do navegador encontrada.')
+
+          for name in ('caixa.html','index.html','system-hardening.js','automatic-conference.js','bread-start-final.js','security-hardening.js','e2e-adapter.js','system-guard.js'):
+              text=read(name)
+              need('4.18.2' not in text,f'{name}: referência de versão 4.18.2 ainda ativa.')
 
           if errors:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
-
-          print('OK: Caixa validado com PWA, isolamento, regra financeira canônica, pães, backup e Realtime resiliente.')
+          print('OK: Caixa validado em regras financeiras, relatórios, PWA, backup, isolamento, pães, Realtime e operações críticas.')
           PY
