@@ -27,43 +27,34 @@ jobs:
 
           caixa=Path('caixa.html').read_text(encoding='utf-8')
           adapter=Path('e2e-adapter.js').read_text(encoding='utf-8')
+          realtime=Path('realtime.js').read_text(encoding='utf-8')
           manifest=Path('manifest.webmanifest').read_text(encoding='utf-8')
           index=Path('index.html').read_text(encoding='utf-8')
           sw=Path('service-worker.js').read_text(encoding='utf-8')
 
-          need("location.hostname==='127.0.0.1'||location.hostname==='localhost'" in adapter,
-               'Adaptador E2E perdeu a restrição a localhost/127.0.0.1.')
-          need("new URLSearchParams(location.search).get('e2e')==='1'" in adapter,
-               'Adaptador E2E perdeu a exigência explícita de ?e2e=1.')
-          need('if(!enabled)return;' in adapter,
-               'Adaptador E2E não interrompe execução quando o modo de teste está desativado.')
-          need("url.hostname==='trnngxezppeembrvxkhh.supabase.co'" in adapter,
-               'Adaptador E2E deixou de interceptar o Supabase oficial durante testes locais.')
-          need('window.__XB_E2E__=true' in adapter and 'window.XBE2E=' in adapter,
-               'Sinalização explícita do ambiente E2E foi removida.')
-          need('failNextSave' in adapter,
-               'Simulação controlada de falha de salvamento foi removida.')
+          need("location.hostname==='127.0.0.1'||location.hostname==='localhost'" in adapter,'Adaptador E2E perdeu a restrição a localhost/127.0.0.1.')
+          need("new URLSearchParams(location.search).get('e2e')==='1'" in adapter,'Adaptador E2E perdeu a exigência explícita de ?e2e=1.')
+          need('if(!enabled)return;' in adapter,'Adaptador E2E não interrompe execução quando desativado.')
+          need("url.hostname==='trnngxezppeembrvxkhh.supabase.co'" in adapter,'Adaptador E2E deixou de interceptar o Supabase oficial em testes locais.')
+          need('window.__XB_E2E__=true' in adapter and 'window.XBE2E=' in adapter,'Sinalização explícita do ambiente E2E foi removida.')
+          need('failNextSave' in adapter,'Simulação controlada de falha de salvamento foi removida.')
+          need("const realtimeDisabled=()=>window.__XB_E2E__===true" in realtime,'Realtime não reconhece explicitamente o ambiente E2E.')
+          need('if(realtimeDisabled())return false' in realtime,'startRealtimeSync pode abrir conexão no ambiente E2E.')
+          need('if(realtimeDisabled()||realtimeReconnectTimer' in realtime,'Reconexão do Realtime pode escapar para produção durante E2E.')
 
           rules_pos=caixa.find('business-rules.js')
           adapter_pos=caixa.find('e2e-adapter.js')
           app5_pos=caixa.find('app5.js')
-          need(rules_pos >= 0 and adapter_pos > rules_pos and adapter_pos < app5_pos,
-               'Ordem de carregamento do adaptador E2E ficou insegura.')
-          need('"./e2e-adapter.js"' in sw,
-               'PWA não contém o adaptador referenciado pela página no precache.')
+          realtime_pos=caixa.find('realtime.js')
+          need(rules_pos>=0 and adapter_pos>rules_pos and adapter_pos<app5_pos<realtime_pos,'Ordem de carregamento do ambiente E2E/Realtime ficou insegura.')
+          need('"./e2e-adapter.js"' in sw and '"./realtime.js"' in sw,'PWA não contém módulos E2E/Realtime referenciados pela página no precache.')
 
-          # O modo E2E jamais pode ser o caminho normal de abertura do app.
-          need('?e2e=1' not in manifest,
-               'Manifest não pode iniciar o aplicativo em modo E2E.')
-          need('?e2e=1' not in index,
-               'Página inicial não pode direcionar usuários ao modo E2E.')
-
-          # O adaptador só pode existir como módulo de teste, nunca como fonte de configuração oficial.
-          need('SUPABASE_URL=' not in adapter and 'SUPABASE_KEY=' not in adapter,
-               'Adaptador E2E não deve redefinir credenciais/configuração oficial do Supabase.')
+          need('?e2e=1' not in manifest,'Manifest não pode iniciar o aplicativo em modo E2E.')
+          need('?e2e=1' not in index,'Página inicial não pode direcionar usuários ao modo E2E.')
+          need('SUPABASE_URL=' not in adapter and 'SUPABASE_KEY=' not in adapter,'Adaptador E2E não deve redefinir configuração oficial do Supabase.')
 
           if errors:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
-          print('OK: modo E2E permanece estritamente local e isolado da produção.')
+          print('OK: modo E2E permanece estritamente local e sem Realtime de produção.')
           PY
