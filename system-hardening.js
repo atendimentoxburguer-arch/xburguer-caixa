@@ -1,5 +1,5 @@
-/* X-Burguer Caixa — estabilidade funcional consolidada v4.18.2 */
-const XB_APP_VERSION='4.18.2';
+/* X-Burguer Caixa — estabilidade funcional consolidada v4.18.3 */
+const XB_APP_VERSION='4.18.3';
 window.XB_APP_VERSION=XB_APP_VERSION;
 let xbAuthRefreshPromise=null;
 
@@ -80,15 +80,23 @@ loadCloudData=function(){
 
 function xbApplyCashRule(rec){
   if(!rec)return rec;
-  const expected=Math.round((Number(rec.cash||0)+Number(rec.deliveryCash||0)-Number(rec.cashOut||0))*100)/100;
+  if(window.XBBusinessRules?.applyCashVerification){
+    return window.XBBusinessRules.applyCashVerification(rec,rec.cashCountVerified);
+  }
+  const expected=Math.round((Number(rec.opening||0)+Number(rec.cash||0)+Number(rec.deliveryCash||0)-Number(rec.cashOut||0))*100)/100;
   rec.expectedCash=expected;
-  rec.cashDifference=Math.round((Number(rec.countedCash||0)-expected)*100)/100;
+  if(rec.cashCountVerified){
+    rec.cashDifference=Math.round((Number(rec.countedCash||0)-expected)*100)/100;
+  }else{
+    rec.countedCash=0;
+    rec.cashDifference=0;
+  }
   return rec;
 }
 
 /* Regra oficial da conferência física:
-   Dinheiro (Caixa) + Dinheiro (Entregas) - dinheiro retirado para despesas.
-   Saldo inicial não entra na conferência física. */
+   Saldo Inicial + Dinheiro (Caixa) + Dinheiro (Entregas) - retiradas.
+   O saldo inicial é dinheiro físico disponível, mas nunca é venda. */
 const xbOriginalCurrentRecord=currentRecord;
 currentRecord=function(dateOverride=null){
   return xbApplyCashRule(xbOriginalCurrentRecord(dateOverride));
@@ -109,7 +117,7 @@ calc=function(){
       diffEl.textContent='—';
       diffEl.classList.remove('positive','negative');
     }else{
-      const expected=n('cash')+n('deliveryCash')-n('cashOut');
+      const expected=n('opening')+n('cash')+n('deliveryCash')-n('cashOut');
       const diff=n('countedCash')-expected;
       diffEl.textContent=br(diff);
       setTone(diffEl,diff);
@@ -144,7 +152,7 @@ drawChart=function(targetId,records){
   target.innerHTML=`<div class="chart-wrap"><div class="chart-y">${steps.map(x=>`<span>${x>=1000?(x/1000).toFixed(1)+'k':Math.round(x)}</span>`).join('')}</div><div class="chart-area"><div class="chart-grid"><i></i><i></i><i></i><i></i><i></i></div><div class="bars">${bars}</div></div></div>`;
 };
 
-/* Backup sempre identifica a versão real que o gerou. */
+/* Backup de contingência; backup-protection.js substitui esta rotina pela versão SHA-256. */
 exportJSON=function(){
   const data={version:XB_APP_VERSION,exportedAt:new Date().toISOString(),records:load()};
   download(`xburguer-backup-${isoToday()}.json`,JSON.stringify(data,null,2),'application/json');

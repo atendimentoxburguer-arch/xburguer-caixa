@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — proteção profissional de backup v4.18.2 */
+/* X-Burguer Caixa — proteção profissional de backup v4.18.3 */
 (function(){
   'use strict';
 
@@ -51,7 +51,7 @@
     const checksum=await sha256Hex(recordsJson);
     return {
       format:FORMAT,
-      version:String(window.XB_APP_VERSION||'4.18.2'),
+      version:String(window.XB_APP_VERSION||'4.18.3'),
       exportedAt:nowIso(),
       recordCount:records.length,
       integrity:{algorithm:'SHA-256',scope:'records-json',checksum},
@@ -280,12 +280,18 @@
     };
   }
 
-  /* Cria/atualiza o snapshot depois das escritas críticas no banco. */
+  /* Cria/atualiza o snapshot depois de qualquer escrita que altere fechamentos. */
   if(baseSbRest){
     sbRest=async function(path,options={},retry=true){
       const result=await baseSbRest(path,options,retry);
+      const target=String(path);
       const method=String(options?.method||'GET').toUpperCase();
-      const changedClosing=String(path).startsWith('rpc/save_cash_closing')||String(path).startsWith('rpc/restore_cash_backup')||(method==='DELETE'&&String(path).startsWith('cash_closings?'));
+      const changedClosing=
+        target.startsWith('rpc/save_cash_closing')||
+        target.startsWith('rpc/delete_cash_closing')||
+        target.startsWith('rpc/restore_cash_backup')||
+        target.startsWith('rpc/restore_deleted_cash_closing')||
+        (method==='DELETE'&&target.startsWith('cash_closings?'));
       if(changedClosing){
         try{await createSnapshot()}catch{}
       }

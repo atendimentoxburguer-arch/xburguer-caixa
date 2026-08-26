@@ -41,6 +41,7 @@ jobs:
           frame_guard=read('frame-guard.js')
           security=read('security-hardening.js')
           e2e_security=read('e2e-security-adapter.js')
+          app3=read('app3.js')
 
           for name,text in [('caixa.html',caixa),('index.html',index)]:
               need('Content-Security-Policy' in text,f'{name}: CSP ausente.')
@@ -48,18 +49,18 @@ jobs:
               need("base-uri 'none'" in text,f'{name}: base-uri precisa permanecer bloqueado.')
               need('name="referrer" content="no-referrer"' in text,f'{name}: política de referrer ausente.')
 
-          need('https://trnngxezppeembrvxkhh.supabase.co' in caixa,'CSP não libera somente o Supabase oficial.')
+          need('https://trnngxezppeembrvxkhh.supabase.co' in caixa,'CSP não libera o Supabase oficial.')
           need('wss://trnngxezppeembrvxkhh.supabase.co' in caixa,'CSP não libera o Realtime oficial.')
           need('@supabase/supabase-js@2.112.3' in caixa,'Supabase JS precisa permanecer fixado na versão auditada.')
           need('@supabase/supabase-js@2"></script>' not in caixa,'Dependência Supabase voltou a usar alias móvel @2.')
           need(not re.search(r'<script(?![^>]*\bsrc=)[^>]*>',index,re.I),'index.html não pode conter script inline.')
 
           need('window.top===window.self' in frame_guard,'Proteção anti-clickjacking foi removida.')
-          need('frame-guard.js?v=4.18.2-security1' in caixa,'frame-guard.js não está carregado.')
-          need(caixa.find('frame-guard.js') < caixa.find('shell1.js'),'Proteção anti-clickjacking precisa carregar antes da interface.')
-          need("sbRest('rpc/delete_cash_closing'" in security,'Exclusão não usa o RPC protegido.')
-          need('security-hardening.js?v=4.18.2-security1' in caixa,'Módulo de segurança não está carregado.')
-          need(caixa.find('security-hardening.js') < caixa.find('e2e-adapter.js') < caixa.find('e2e-security-adapter.js') < caixa.find('app5.js'),'Ordem dos módulos de segurança/E2E está incorreta.')
+          need('frame-guard.js?v=4.18.3-security1' in caixa,'frame-guard.js não está carregado na revisão atual.')
+          need(caixa.find('frame-guard.js')<caixa.find('shell1.js'),'Proteção anti-clickjacking precisa carregar antes da interface.')
+          need("sbRest('rpc/delete_cash_closing'" in app3 and "sbRest('rpc/delete_cash_closing'" in security,'Exclusão protegida precisa existir no fluxo-base e na camada de segurança.')
+          need('security-hardening.js?v=4.18.3-security1' in caixa,'Módulo de segurança não está carregado na revisão atual.')
+          need(caixa.find('security-hardening.js')<caixa.find('e2e-adapter.js')<caixa.find('e2e-security-adapter.js')<caixa.find('app5.js'),'Ordem dos módulos de segurança/E2E está incorreta.')
           need('rpc/delete_cash_closing' in e2e_security,'Ambiente E2E não cobre o RPC de exclusão.')
 
           for asset in ('index-bootstrap.js','frame-guard.js','security-hardening.js','e2e-security-adapter.js'):
@@ -70,8 +71,7 @@ jobs:
           for path in runtime:
               text=path.read_text(encoding='utf-8',errors='ignore')
               for token in forbidden:
-                  if token in text:
-                      errors.append(f'{path}: possível segredo/credencial proibida encontrada: {token}')
+                  if token in text:errors.append(f'{path}: possível segredo/credencial proibida encontrada: {token}')
 
           if errors:
               print('\n'.join('ERRO: '+e for e in errors))

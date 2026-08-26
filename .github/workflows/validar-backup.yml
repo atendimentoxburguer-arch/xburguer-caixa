@@ -42,13 +42,13 @@ jobs:
           need("baseSbRest('rpc/create_cash_snapshot'" in backup,'Snapshot automático do Supabase ausente.')
           need("rpc/restore_cash_backup" in backup,'Snapshot não acompanha restaurações de backup.')
           need("rpc/save_cash_closing" in backup,'Snapshot não acompanha salvamentos de fechamento.')
-          need("method==='DELETE'" in backup and "cash_closings?" in backup,'Snapshot não acompanha exclusões de fechamento.')
+          need("rpc/delete_cash_closing" in backup or ("method==='DELETE'" in backup and "cash_closings?" in backup),'Snapshot não acompanha exclusões de fechamento.')
           need('Lembrete de segurança' in backup,'Lembrete periódico de backup externo ausente.')
 
           pos=caixa.find('backup-protection.js')
           app5=caixa.find('app5.js')
           need(pos>=0 and app5>=0 and pos<app5,'Proteção de backup precisa carregar antes do app5.js.')
-          need('backup-protection.js?v=4.18.2-backup1' in caixa,'Cache-busting da proteção de backup ausente.')
+          need('backup-protection.js?v=4.18.3-audit2' in caixa,'Cache-busting da proteção de backup ausente ou desatualizado.')
           need('"./backup-protection.js"' in sw,'Proteção de backup não está no precache offline.')
 
           need('backup JSON protegido por SHA-256' in readme,'README não documenta backup SHA-256.')

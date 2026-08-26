@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — sincronização em tempo real resiliente v4.18.2 */
+/* X-Burguer Caixa — sincronização em tempo real resiliente v4.18.3 */
 let realtimeClient=null;
 let realtimeChannel=null;
 let realtimeUserId=null;
@@ -9,6 +9,8 @@ let realtimeStartPromise=null;
 let realtimeState='idle';
 let realtimeStopping=false;
 let realtimeRetryCount=0;
+
+const realtimeDisabled=()=>window.__XB_E2E__===true;
 
 function realtimeStatus(text,state='online'){
   if(typeof setCloudStatus==='function')setCloudStatus(text,state);
@@ -31,7 +33,7 @@ function applyAutomaticSyncUI(){
   }
 
   const info=document.getElementById('syncInfo');
-  if(info)info.textContent=navigator.onLine?'Conectando ao tempo real...':'Sem internet • rascunho local disponível';
+  if(info)info.textContent=realtimeDisabled()?'Ambiente de teste isolado':(navigator.onLine?'Conectando ao tempo real...':'Sem internet • rascunho local disponível');
 }
 
 applyAutomaticSyncUI();
@@ -62,10 +64,11 @@ function nextReconnectDelay(){
 }
 
 function scheduleRealtimeRestart(delay=null){
-  if(realtimeReconnectTimer||!authSession?.access_token||!currentUser?.id||!navigator.onLine)return;
+  if(realtimeDisabled()||realtimeReconnectTimer||!authSession?.access_token||!currentUser?.id||!navigator.onLine)return;
   const wait=delay===null?nextReconnectDelay():Math.max(0,delay);
   realtimeReconnectTimer=setTimeout(()=>{
     realtimeReconnectTimer=null;
+    if(realtimeDisabled())return;
     realtimeRetryCount++;
     startRealtimeSync(true).catch(()=>scheduleRealtimeRestart());
   },wait);
@@ -73,10 +76,10 @@ function scheduleRealtimeRestart(delay=null){
 
 function scheduleRealtimeReload(){
   clearTimeout(realtimeReloadTimer);
-  if(!navigator.onLine)return;
+  if(realtimeDisabled()||!navigator.onLine)return;
   realtimeReloadTimer=setTimeout(async()=>{
     realtimeReloadTimer=null;
-    if(!authSession?.access_token||!navigator.onLine)return;
+    if(realtimeDisabled()||!authSession?.access_token||!navigator.onLine)return;
     if(saveInProgress||deleteInProgress||manualSyncInProgress){
       scheduleRealtimeReload();
       return;
@@ -99,9 +102,11 @@ function scheduleRealtimeReload(){
 }
 
 async function startRealtimeSync(force=false){
+  if(realtimeDisabled())return false;
   if(realtimeStartPromise)return realtimeStartPromise;
 
   realtimeStartPromise=(async()=>{
+    if(realtimeDisabled())return false;
     if(!navigator.onLine){
       realtimeState='idle';
       realtimeStatus('● Sem internet','error');
@@ -120,7 +125,7 @@ async function startRealtimeSync(force=false){
     }
 
     if(force||realtimeChannel)await stopRealtimeSync();
-    if(!navigator.onLine||!authSession?.access_token||!currentUser?.id)return false;
+    if(realtimeDisabled()||!navigator.onLine||!authSession?.access_token||!currentUser?.id)return false;
 
     realtimeUserId=currentUser.id;
     realtimeToken=authSession.access_token;
@@ -140,7 +145,7 @@ async function startRealtimeSync(force=false){
     realtimeChannel=channel;
 
     channel.subscribe(status=>{
-      if(channel!==realtimeChannel)return;
+      if(channel!==realtimeChannel||realtimeDisabled())return;
 
       if(status==='SUBSCRIBED'){
         realtimeState='ready';
@@ -181,7 +186,7 @@ async function startRealtimeSync(force=false){
 /* Verificação leve. O próprio cliente Realtime tenta recuperar a conexão;
    esta rotina só recria o canal quando ele realmente ficou indisponível. */
 setInterval(()=>{
-  if(!navigator.onLine)return;
+  if(realtimeDisabled()||!navigator.onLine)return;
   if(authSession?.access_token&&currentUser?.id){
     if(!realtimeChannel||realtimeState==='idle')startRealtimeSync(false).catch(()=>{});
     else if(realtimeState==='error')scheduleRealtimeRestart();
@@ -192,7 +197,7 @@ setInterval(()=>{
 },30000);
 
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState!=='visible'||!navigator.onLine||!authSession?.access_token)return;
+  if(realtimeDisabled()||document.visibilityState!=='visible'||!navigator.onLine||!authSession?.access_token)return;
   startRealtimeSync(false).then(async()=>{
     try{
       await loadCloudData();
@@ -204,6 +209,7 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 window.addEventListener('online',()=>{
+  if(realtimeDisabled())return;
   realtimeRetryCount=0;
   if(authSession?.access_token)startRealtimeSync(true).catch(()=>scheduleRealtimeRestart());
 });
@@ -214,6 +220,7 @@ window.addEventListener('offline',()=>{
   clearTimeout(realtimeReloadTimer);
   realtimeReconnectTimer=null;
   realtimeReloadTimer=null;
+  if(realtimeDisabled())return;
   realtimeStatus('● Sem internet','error');
   const info=document.getElementById('syncInfo');
   if(info)info.textContent='Sem internet • sincronização retomará automaticamente';

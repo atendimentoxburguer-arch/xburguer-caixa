@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — integração da arquitetura de regras v4.18.2 */
+/* X-Burguer Caixa — integração da arquitetura de regras v4.18.3 */
 (function(){
   'use strict';
   const rules=window.XBBusinessRules;
@@ -6,6 +6,10 @@
 
   const AUTO_OPENING_EFFECTIVE_DATE='2026-08-24';
   const byId=id=>document.getElementById(id);
+  const activeDate=()=>{
+    try{if(typeof activeClosingDate!=='undefined'&&activeClosingDate)return activeClosingDate}catch{}
+    return byId('date')?.value||'';
+  };
 
   function isManagedOpeningDate(date){
     const value=String(date||'');
@@ -23,10 +27,15 @@
   function findPreviousSaved(date){
     const target=String(date||'');
     if(!/^\d{4}-\d{2}-\d{2}$/.test(target))return null;
+    const current=findSaved(target);
+    const registerName=current?.registerName||'Caixa Principal';
+    const shiftName=current?.shiftName||'Dia';
     const record=savedRecords()
       .filter(item=>{
         const itemDate=String(item?.date||'');
-        return itemDate<target&&sameMonth(itemDate,target);
+        const itemRegister=item?.registerName||'Caixa Principal';
+        const itemShift=item?.shiftName||'Dia';
+        return itemDate<target&&sameMonth(itemDate,target)&&itemRegister===registerName&&itemShift===shiftName;
       })
       .sort((a,b)=>String(b?.date||'').localeCompare(String(a?.date||'')))[0]||null;
     return record?rules.normalizeRecord(record,{cashCountVerified:record.cashCountVerified}):null;
@@ -101,7 +110,7 @@
     const previous=resetFormFields;
     resetFormFields=function(date){
       const result=previous(date);
-      applyOpeningRule(date||byId('date')?.value||'');
+      applyOpeningRule(date||activeDate());
       try{calc()}catch{}
       return result;
     };
@@ -111,7 +120,7 @@
     const previous=populateForm;
     populateForm=function(record,options={}){
       const result=previous(record,options);
-      const date=record?.date||byId('date')?.value||'';
+      const date=record?.date||activeDate();
       applyOpeningRule(date,{preserveSavedWhenMissing:true});
       try{calc()}catch{}
       return result;
@@ -121,7 +130,7 @@
   if(typeof currentRecord==='function'){
     const previous=currentRecord;
     currentRecord=function(dateOverride=null){
-      const target=dateOverride||window.activeClosingDate||byId('date')?.value||'';
+      const target=dateOverride||activeDate();
       applyOpeningRule(target,{preserveSavedWhenMissing:true});
       const base=previous(dateOverride);
       if(!base)return base;
@@ -151,7 +160,7 @@
   }
 
   setTimeout(()=>{
-    try{applyOpeningRule(window.activeClosingDate||byId('date')?.value||'')}catch{}
+    try{applyOpeningRule(activeDate())}catch{}
   },0);
 
   window.XBArchitecture=Object.freeze({

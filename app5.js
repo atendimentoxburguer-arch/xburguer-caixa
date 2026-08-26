@@ -1,3 +1,5 @@
+let appRevealTimer=null;
+
 async function importJSON(){
   const file=$('importFile').files[0];
   if(!file)return toast('Selecione um arquivo JSON.','error');
@@ -18,6 +20,7 @@ async function importJSON(){
     });
     if(!importOk)return;
 
+    importInProgress=true;
     $('importBtn').disabled=true;
     $('importBtn').textContent='Importando...';
     setCloudStatus('● Importando...','syncing');
@@ -38,6 +41,7 @@ async function importJSON(){
     setCloudStatus(navigator.onLine?'● Erro de sincronização':'● Sem internet','error');
     toast(err.message||'Não foi possível restaurar o backup. Nenhum dado do arquivo foi aplicado.','error');
   }finally{
+    importInProgress=false;
     $('importBtn').disabled=false;
     $('importBtn').textContent='Restaurar arquivo';
   }
@@ -45,14 +49,20 @@ async function importJSON(){
 
 function showApp(){
   const screen=$('loginScreen');
+  clearTimeout(appRevealTimer);
+  appRevealTimer=null;
   document.body.classList.remove('app-reveal');
   void document.body.offsetWidth;
   document.body.classList.add('app-reveal');
   screen.classList.add('leaving');
-  setTimeout(()=>screen.classList.add('hidden'),390);
+  appRevealTimer=setTimeout(()=>{
+    appRevealTimer=null;
+    screen.classList.add('hidden');
+  },390);
 }
 
 async function logout(){
+  clearTimeout(appRevealTimer);appRevealTimer=null;
   if(formDirty)flushDraft(activeClosingDate);
   try{
     if(authSession?.access_token){

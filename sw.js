@@ -1,2 +1,2 @@
 /* Compatibilidade legada: usa exatamente o Service Worker oficial do Caixa. */
-importScripts('./service-worker.js?v=native-4');
+importScripts('./service-worker.js?v=native-5');

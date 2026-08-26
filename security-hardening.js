@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — segurança adicional v4.18.2 */
+/* X-Burguer Caixa — segurança adicional v4.18.3 */
 (function(){
   'use strict';
 

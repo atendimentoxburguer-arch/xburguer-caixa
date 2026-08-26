@@ -1,8 +1,8 @@
-/* X-Burguer Caixa — registro único e resiliente do PWA */
+/* X-Burguer Caixa — registro único e resiliente do PWA v4.18.3 */
 (function(){
   'use strict';
 
-  const REVISION='native-4';
+  const REVISION='native-5';
   const SCOPE='/xburguer-caixa/';
   const SCRIPT_PATH=SCOPE+'service-worker.js';
   let pending=null;
@@ -17,14 +17,8 @@
 
       for(const old of registrations){
         if(old.scope!==expectedScope)continue;
-        const scriptUrl=
-          old.active?.scriptURL ||
-          old.waiting?.scriptURL ||
-          old.installing?.scriptURL ||
-          '';
-        if(scriptUrl && new URL(scriptUrl).pathname!==SCRIPT_PATH){
-          await old.unregister();
-        }
+        const scriptUrl=old.active?.scriptURL||old.waiting?.scriptURL||old.installing?.scriptURL||'';
+        if(scriptUrl&&new URL(scriptUrl).pathname!==SCRIPT_PATH)await old.unregister();
       }
 
       const reg=await navigator.serviceWorker.register(
