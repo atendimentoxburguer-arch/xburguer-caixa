@@ -1,4 +1,4 @@
-const CACHE_NAME = "xburguer-caixa-native-v6-audit-4.18.3";
+const CACHE_NAME = "xburguer-caixa-native-v6-finance-summary-4.18.3";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
   "./",
@@ -58,6 +58,7 @@ const PRECACHE = [
   "./backup-protection.js",
   "./business-rules-integration.js",
   "./financial-integrity.js",
+  "./financial-summary-separation.js",
   "./security-hardening.js",
   "./e2e-adapter.js",
   "./e2e-security-adapter.js",
