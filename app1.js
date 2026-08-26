@@ -47,7 +47,6 @@ function closeConfirmModal(answer=false){
 
 function openConfirmModal({title='Confirmar ação',message='Deseja continuar?',note='Esta ação não pode ser desfeita.',confirmText='Confirmar',cancelText='Cancelar',badge='Confirmação'}={}){
   const layer=$('confirmLayer');
-  // Impede que duplo clique ou duas ações simultâneas substituam a confirmação já aberta.
   if(confirmResolver || !layer.hidden)return Promise.resolve(false);
   $('confirmTitle').textContent=title;
   $('confirmMessage').textContent=message;
@@ -62,9 +61,7 @@ function openConfirmModal({title='Confirmar ação',message='Deseja continuar?',
 }
 
 function load(){return cloudData}
-
 function saveData(data){cloudData=Array.isArray(data)?data:[]}
-
 function setTone(el,value){el.classList.remove('positive','negative');el.classList.add(value<0?'negative':'positive')}
 
 function setCloudStatus(text,state='online'){
@@ -95,9 +92,7 @@ function updateSyncUi(){
   if($('draftCount'))$('draftCount').textContent=countLocalDrafts();
 }
 
-function sessionStore(remember){
-  return remember?localStorage:sessionStorage;
-}
+function sessionStore(remember){return remember?localStorage:sessionStorage}
 
 function clearStoredSessions(){
   localStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(SESSION_KEY);
@@ -106,8 +101,7 @@ function clearStoredSessions(){
 function persistSession(session,remember){
   clearStoredSessions();
   if(!session)return;
-  const target=sessionStore(remember);
-  target.setItem(SESSION_KEY,JSON.stringify(session));
+  sessionStore(remember).setItem(SESSION_KEY,JSON.stringify(session));
 }
 
 function readStoredSession(){
@@ -209,23 +203,29 @@ function cloudToRecord(c){
   const breadMap=new Map((c.bread_controls||[]).map(x=>[x.bread_type,x]));
   const ideal=breadMap.get('Pão Ideal')||{},gourmet=breadMap.get('Pão Gourmet')||{};
   const sales=Number(c.total_sales||0),expense=Number(c.total_expenses||0);
-  const paymentTotal=Number(c.cash_sales||0)+Number(c.store_card_sales||0)+Number(c.pix_app_sales||0)+Number(c.delivery_card_sales||0);
-  return {
+  const deliveryCash=Number(c.delivery_cash_sales||0);
+  const paymentTotal=Number(c.cash_sales||0)+deliveryCash+Number(c.store_card_sales||0)+Number(c.pix_app_sales||0)+Number(c.delivery_card_sales||0);
+  const record={
     _id:c.id,
     status:c.status||'closed',
+    registerName:c.register_name||'Caixa Principal',
+    shiftName:c.shift_name||'Dia',
     date:c.business_date,
     resp:c.responsible_name||'',
     opening:Number(c.opening_balance||0),
     cash:Number(c.cash_sales||0),
+    deliveryCash,
     cardOut:Number(c.store_card_sales||0),
     onlinePayment:Number(c.pix_app_sales||0),
     deliveryCard:Number(c.delivery_card_sales||0),
     cashOut:Number(c.cash_withdrawn_for_expenses||0),
+    cashCountVerified:!!c.cash_count_verified,
     countedCash:Number(c.counted_cash||0),
     expectedCash:Number(c.expected_cash||0),
     cashDifference:Number(c.cash_difference||0),
     paymentTotal,
     paymentDifference:paymentTotal-sales,
+    summaryTotal:paymentTotal,
     sales,
     orders:mappedChannels.reduce((a,x)=>a+x.q,0),
     expense,
@@ -248,6 +248,9 @@ function cloudToRecord(c){
     },
     savedAt:c.updated_at||c.created_at||''
   };
+  return window.XBBusinessRules?.normalizeRecord
+    ? window.XBBusinessRules.normalizeRecord(record,{cashCountVerified:record.cashCountVerified})
+    : record;
 }
 
 async function loadCloudData(){
@@ -256,8 +259,17 @@ async function loadCloudData(){
     setCloudStatus('● Sincronizando...','syncing');
     try{
       const select='*,channel_sales(channel_name,order_count,amount),bread_controls(bread_type,opening_stock,production,out_qty,closing_stock),online_orders(platform,order_count,amount),expenses(description,amount)';
-      const rows=await sbRest(`cash_closings?select=${encodeURIComponent(select)}&order=business_date.asc`);
-      cloudData=(rows||[]).map(cloudToRecord);
+      const pageSize=500;
+      let offset=0;
+      const all=[];
+      while(true){
+        const rows=await sbRest(`cash_closings?select=${encodeURIComponent(select)}&order=business_date.asc&limit=${pageSize}&offset=${offset}`);
+        const batch=Array.isArray(rows)?rows:[];
+        all.push(...batch);
+        if(batch.length<pageSize)break;
+        offset+=pageSize;
+      }
+      cloudData=all.map(cloudToRecord);
       lastSyncAt=new Date();
       setCloudStatus('● Banco na nuvem','online');
       updateSyncUi();
@@ -296,12 +308,11 @@ async function loginCloud(email,password,remember){
 
 async function saveRecordCloud(rec){
   const payload={...rec,status:rec.status||'closed'};
-  const result=await sbRest('rpc/save_cash_closing',{
+  return sbRest('rpc/save_cash_closing',{
     method:'POST',
     headers:{'Prefer':'return=representation'},
     body:JSON.stringify({p_record:payload})
   });
-  return result;
 }
 
 function makeChannels(){let html='';channels.forEach((name,i)=>{html+=`<div class="channel-row"><b>${escapeHtml(name)}</b><input id="q${i}" type="number" min="0" step="1" placeholder="Qtd" aria-label="Quantidade do dia - ${escapeHtml(name)}"><input id="v${i}" type="number" min="0" step="0.01" placeholder="R$" aria-label="Valor do dia - ${escapeHtml(name)}"><span class="month-qty" id="cq${i}">0</span><span class="month-value money" id="cv${i}">R$ 0,00</span></div>`});$('channels').innerHTML=html;channels.forEach((_,i)=>['q'+i,'v'+i].forEach(id=>$(id).addEventListener('input',onFormInput)))}
