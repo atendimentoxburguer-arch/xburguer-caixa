@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — adaptador E2E local.
+/* X-Burguer Caixa — adaptador E2E local v4.18.3.
    Só ativa em localhost/127.0.0.1 com ?e2e=1. Nunca toca no Supabase real. */
 (function(){
   'use strict';
@@ -28,9 +28,7 @@
       return Array.isArray(rows)?rows:[];
     }catch{return []}
   }
-  function writeRecords(rows){
-    localStorage.setItem(DATA_KEY,JSON.stringify(rows));
-  }
+  function writeRecords(rows){localStorage.setItem(DATA_KEY,JSON.stringify(rows))}
   function upsertRecord(record){
     const rows=readRecords();
     const normalized=rules?.normalizeRecord?rules.normalizeRecord(record,{cashCountVerified:record.cashCountVerified}):record;
@@ -41,16 +39,15 @@
     writeRecords(rows);
     return saved;
   }
+  function removeById(id){
+    writeRecords(readRecords().filter(item=>item._id!==id));
+    cloudData=readRecords();
+    return {deleted_id:id};
+  }
 
   loginCloud=async function(email,password,remember){
     if(!String(password||'').trim())throw new Error('Informe a senha de teste.');
-    authSession={
-      access_token:'e2e-access-token',
-      refresh_token:'e2e-refresh-token',
-      token_type:'bearer',
-      expires_at:Math.floor(Date.now()/1000)+86400,
-      user:{id:'00000000-0000-0000-0000-000000000001',email}
-    };
+    authSession={access_token:'e2e-access-token',refresh_token:'e2e-refresh-token',token_type:'bearer',expires_at:Math.floor(Date.now()/1000)+86400,user:{id:'00000000-0000-0000-0000-000000000001',email}};
     currentUser=authSession.user;
     currentProfile={full_name:'Teste Automatizado',role:'manager',active:true};
     if(document.getElementById('userName'))document.getElementById('userName').textContent='Teste Automatizado';
@@ -82,36 +79,31 @@
   };
 
   saveRecordCloud=async function(record){
-    if(nextSaveError){
-      const message=nextSaveError;
-      nextSaveError=null;
-      throw new Error(message);
-    }
-    const saved=upsertRecord(record);
-    cloudData=readRecords();
-    return saved._id;
+    if(nextSaveError){const message=nextSaveError;nextSaveError=null;throw new Error(message)}
+    const saved=upsertRecord(record);cloudData=readRecords();return saved._id;
   };
 
   sbRest=async function(path,options={}){
+    const target=String(path);
     const method=String(options.method||'GET').toUpperCase();
-    if(String(path).startsWith('cash_closings?')&&method==='DELETE'){
-      const match=String(path).match(/id=eq\.([^&]+)/);
-      const id=match?decodeURIComponent(match[1]):'';
-      writeRecords(readRecords().filter(item=>item._id!==id));
-      cloudData=readRecords();
-      return null;
+    if(target.startsWith('cash_closings?')&&method==='DELETE'){
+      const match=target.match(/id=eq\.([^&]+)/);return removeById(match?decodeURIComponent(match[1]):'');
     }
-    if(String(path).startsWith('rpc/restore_cash_backup')){
+    if(target.startsWith('rpc/delete_cash_closing')){
+      const payload=typeof options.body==='string'?JSON.parse(options.body):options.body||{};
+      const id=String(payload.p_id||'');
+      if(!id)throw new Error('ID do fechamento de teste ausente.');
+      return removeById(id);
+    }
+    if(target.startsWith('rpc/restore_cash_backup')){
       const payload=typeof options.body==='string'?JSON.parse(options.body):options.body||{};
       const records=Array.isArray(payload.p_records)?payload.p_records:[];
-      records.forEach(upsertRecord);
-      cloudData=readRecords();
-      return {restored:records.length};
+      records.forEach(upsertRecord);cloudData=readRecords();return {restored:records.length};
     }
-    if(String(path).startsWith('profiles?'))return [{full_name:'Teste Automatizado',role:'manager',active:true}];
-    if(String(path).startsWith('backup_exports?'))return [];
-    if(String(path).startsWith('cash_backup_snapshots?'))return [];
-    if(String(path).startsWith('rpc/create_cash_snapshot'))return {snapshot_day:new Date().toISOString().slice(0,10),record_count:readRecords().length};
+    if(target.startsWith('profiles?'))return [{full_name:'Teste Automatizado',role:'manager',active:true}];
+    if(target.startsWith('backup_exports?'))return [];
+    if(target.startsWith('cash_backup_snapshots?'))return [];
+    if(target.startsWith('rpc/create_cash_snapshot'))return {snapshot_day:new Date().toISOString().slice(0,10),record_count:readRecords().length};
     return [];
   };
 
@@ -123,14 +115,7 @@
   exportJSON=async function(){
     const records=readRecords();
     const checksum=await sha256Hex(JSON.stringify(records));
-    const envelope={
-      format:'xburguer-caixa-backup-v2',
-      version:'4.18.2',
-      exportedAt:new Date().toISOString(),
-      recordCount:records.length,
-      integrity:{algorithm:'SHA-256',scope:'records-json',checksum},
-      records
-    };
+    const envelope={format:'xburguer-caixa-backup-v2',version:String(window.XB_APP_VERSION||rules?.VERSION||'4.18.3'),exportedAt:new Date().toISOString(),recordCount:records.length,integrity:{algorithm:'SHA-256',scope:'records-json',checksum},records};
     download(`xburguer-caixa-e2e-${isoToday()}.json`,JSON.stringify(envelope,null,2),'application/json');
     localStorage.setItem(BACKUP_KEY,new Date().toLocaleString('pt-BR'));
     try{refreshBackup()}catch{}
@@ -139,16 +124,9 @@
 
   window.XBE2E={
     enabled:true,
-    reset(){
-      localStorage.removeItem(DATA_KEY);
-      clearStoredSessions();
-      cloudData=[];
-      nextSaveError=null;
-    },
+    reset(){localStorage.removeItem(DATA_KEY);clearStoredSessions();cloudData=[];nextSaveError=null},
     records:readRecords,
-    failNextSave(message='Falha de salvamento E2E simulada.'){
-      nextSaveError=String(message||'Falha de salvamento E2E simulada.');
-    }
+    failNextSave(message='Falha de salvamento E2E simulada.'){nextSaveError=String(message||'Falha de salvamento E2E simulada.')}
   };
 
   setTimeout(()=>{
