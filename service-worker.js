@@ -60,6 +60,7 @@ const PRECACHE = [
   "./financial-integrity.js",
   "./financial-summary-separation.js",
   "./dashboard-financial.js",
+  "./financial-sales-canonical.js",
   "./security-hardening.js",
   "./e2e-adapter.js",
   "./e2e-security-adapter.js",
