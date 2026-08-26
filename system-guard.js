@@ -1,8 +1,7 @@
-/* X-Burguer Caixa — proteção de operações críticas v4.14.1 */
+/* X-Burguer Caixa — proteção de operações críticas v4.18.3 */
 (function(){
   function operationInProgress(){
-    const importing=!!document.getElementById('importBtn')?.disabled;
-    return !!(saveInProgress||deleteInProgress||manualSyncInProgress||importing);
+    return !!(saveInProgress||deleteInProgress||manualSyncInProgress||importInProgress);
   }
 
   const logoutBtn=document.getElementById('logoutBtn');
