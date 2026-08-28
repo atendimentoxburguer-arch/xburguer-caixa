@@ -38,7 +38,9 @@ test('resumo financeiro é a venda oficial e canais permanecem demonstrativos',a
   await expect(page.locator('#dayBalance')).toContainText('150,00');
   await expect(page.locator('#ctVal')).toContainText('400,00');
   await expect(page.locator('.cash-conference-item')).toContainText(['Venda do Resumo Financeiro','Diferença resumo × canais (demonstrativo)']);
-  await expect(page.locator('#automaticConferenceStatus')).not.toContainText('Atenção');
+  await expect(page.locator('#paymentTotal')).toContainText('150,00');
+  await expect(page.locator('#paymentDiff')).toContainText('250,00');
+  await expect(page.locator('#paymentDiff')).not.toHaveClass(/positive|negative/);
 
   await page.locator('#saveTopBtn').click();
   await expect(page.locator('#toast')).toContainText('salvo',{timeout:5000});
