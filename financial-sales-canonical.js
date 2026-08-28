@@ -19,7 +19,13 @@
   const currentExpenses=()=>{
     try{return round(getExpenses().reduce((total,item)=>total+Number(item?.val||0),0))}catch{return 0}
   };
-  const recordChannelSales=record=>rules?.channelSales?rules.channelSales(record||{}):round((record?.channels||[]).reduce((t,c)=>t+Number(c?.v||0),0));
+  const recordFinancialSales=record=>{
+    if(rules?.financialSummaryTotal)return round(rules.financialSummaryTotal(record||{}));
+    if(Number.isFinite(Number(record?.summaryTotal)))return round(record.summaryTotal);
+    if(Number.isFinite(Number(record?.paymentTotal)))return round(record.paymentTotal);
+    return round(Number(record?.cash||0)+Number(record?.deliveryCash||0)+Number(record?.cardOut||0)+Number(record?.onlinePayment||0)+Number(record?.deliveryCard||0));
+  };
+  const recordChannelSales=record=>rules?.channelSales?round(rules.channelSales(record||{})):round((record?.channels||[]).reduce((t,c)=>t+Number(c?.v||0),0));
 
   function selectedDate(){
     return byId('date')?.value||((typeof isoToday==='function')?isoToday():'');
@@ -35,6 +41,7 @@
   }
 
   function setToneSafe(el,n){if(el&&typeof setTone==='function')setTone(el,n)}
+  function normalizeRecord(record){return typeof normalize==='function'?normalize(record):record}
 
   function updateClosingFinancialTotals(){
     const date=selectedDate();
@@ -44,52 +51,109 @@
     const orders=currentOrders();
     const expenses=currentExpenses();
     const result=round(sales-expenses);
-    const priorSales=round(prior.reduce((t,r)=>t+Number(r?.sales||0),0));
-    const priorResult=round(prior.reduce((t,r)=>t+Number(r?.result||0),0));
+    const priorSales=round(prior.reduce((t,r)=>t+recordFinancialSales(r),0));
+    const priorResult=round(prior.reduce((t,r)=>t+round(recordFinancialSales(r)-Number(r?.expense||0)),0));
     const priorChannel=round(prior.reduce((t,r)=>t+recordChannelSales(r),0));
     const priorOrders=prior.reduce((t,r)=>t+Number(r?.orders||0),0);
     const channelDiff=round(sales-channelSales);
 
-    if(byId('daySales'))byId('daySales').textContent=money(sales);
+    if(byId('daySales')){
+      byId('daySales').textContent=money(sales);
+      byId('daySales').title='Total de Vendas = soma exclusiva do Resumo Financeiro.';
+    }
     if(byId('aSales'))byId('aSales').textContent=money(round(priorSales+sales));
     if(byId('dayBalance')){byId('dayBalance').textContent=money(result);setToneSafe(byId('dayBalance'),result)}
     if(byId('aBalance')){const total=round(priorResult+result);byId('aBalance').textContent=money(total);setToneSafe(byId('aBalance'),total)}
 
-    // O painel de canais continua independente e demonstrativo.
+    // O painel de canais é independente: informa origem dos pedidos, não receita financeira.
     if(byId('ctVal'))byId('ctVal').textContent=money(channelSales);
     if(byId('ctQtd'))byId('ctQtd').textContent=orders+' pedidos';
     if(byId('ctMonthVal'))byId('ctMonthVal').textContent=money(round(priorChannel+channelSales));
     if(byId('ctMonthQtd'))byId('ctMonthQtd').textContent=(priorOrders+orders)+' até o dia';
 
-    if(byId('paymentTotal'))byId('paymentTotal').textContent=money(sales);
+    if(byId('paymentTotal')){
+      byId('paymentTotal').textContent=money(sales);
+      byId('paymentTotal').title='Venda oficial do fechamento, calculada pelas formas de pagamento.';
+    }
     if(byId('paymentDiff')){
       byId('paymentDiff').textContent=money(channelDiff);
-      byId('paymentDiff').title='Comparação apenas demonstrativa entre o Resumo Financeiro e as vendas por canal. Não altera Total de Vendas nem Resultado.';
-      setToneSafe(byId('paymentDiff'),-Math.abs(channelDiff));
-      if(Math.abs(channelDiff)<0.005)byId('paymentDiff').className='positive';
+      byId('paymentDiff').title='Comparação somente demonstrativa entre o Resumo Financeiro e os canais. Não entra em Venda, Resultado ou Ticket.';
+      byId('paymentDiff').classList.remove('positive','negative');
     }
 
     document.querySelectorAll('.cash-conference-item').forEach(item=>{
       const label=item.querySelector('span');
-      if(label?.textContent?.trim()==='Diferença pagamentos × vendas')label.textContent='Diferença resumo × canais';
+      const text=label?.textContent?.trim();
+      if(text==='Pagamentos informados'||text==='Venda do Resumo Financeiro')label.textContent='Venda do Resumo Financeiro';
+      if(text==='Diferença pagamentos × vendas'||text==='Diferença resumo × canais'||text==='Diferença resumo × canais (demonstrativo)')label.textContent='Diferença resumo × canais (demonstrativo)';
     });
 
+    const status=byId('automaticConferenceStatus');
+    if(status){
+      status.classList.remove('positive','negative');
+      status.textContent=(sales||channelSales||orders||expenses)
+        ? '✓ Resumo financeiro calculado • canais apenas demonstrativos'
+        : 'Aguardando os lançamentos do fechamento';
+    }
     const detail=byId('automaticConferenceDetail');
-    if(detail)detail.textContent='Venda financeira: '+money(sales)+' • Vendas por canal (demonstrativo): '+money(channelSales)+' • Diferença demonstrativa: '+money(channelDiff);
+    if(detail)detail.textContent='Venda oficial: '+money(sales)+' • Vendas por canal (demonstrativo): '+money(channelSales)+' • Diferença demonstrativa: '+money(channelDiff);
   }
 
-  function fixMonthlyChannelDemonstrativeTotal(){
+  function fixDailyReport(){
     try{
-      const ym=byId('monthPicker')?.value||monthNow();
-      const month=monthRecords(ym).map(r=>typeof normalize==='function'?normalize(r):r);
+      const date=byId('dailyReportDate')?.value||((typeof isoToday==='function')?isoToday():'');
+      const record=(typeof load==='function'?load():[]).map(normalizeRecord).find(r=>r?.date===date);
+      if(!record)return;
+      const sales=recordFinancialSales(record);
+      const expenses=round(Number(record.expense||0));
+      const result=round(sales-expenses);
+      if(byId('drSales'))byId('drSales').textContent=money(sales);
+      if(byId('drResult')){byId('drResult').textContent=money(result);setToneSafe(byId('drResult'),result)}
+      document.querySelectorAll('#dailyFinancialRows .data-row').forEach(row=>{
+        const label=row.querySelector('span');
+        const amount=row.querySelector('b');
+        const extra=row.querySelector('span:last-child');
+        const text=label?.textContent?.trim();
+        if(text==='Total informado em pagamentos'||text==='Total de vendas (Resumo Financeiro)'){
+          label.textContent='Total de vendas (Resumo Financeiro)';
+          if(amount)amount.textContent=money(sales);
+          if(extra)extra.textContent='Venda oficial';
+        }
+        if(text==='Resultado do dia'&&amount)amount.textContent=money(result);
+      });
+    }catch{}
+  }
+
+  function fixMonthlyReport(){
+    try{
+      const ym=byId('monthPicker')?.value||((typeof monthNow==='function')?monthNow():'');
+      const month=(typeof monthRecords==='function'?monthRecords(ym):[]).map(normalizeRecord);
+      const sales=round(month.reduce((t,r)=>t+recordFinancialSales(r),0));
+      const expenses=round(month.reduce((t,r)=>t+Number(r?.expense||0),0));
+      const result=round(sales-expenses);
       const channelValue=round(month.reduce((t,r)=>t+recordChannelSales(r),0));
       const channelOrders=month.reduce((t,r)=>t+Number(r?.orders||0),0);
-      const row=byId('monthlyChannelsTable')?.querySelector('tr.report-total-row:last-child');
-      if(row?.cells?.length>=4){
-        row.cells[1].textContent=String(channelOrders);
-        row.cells[2].textContent=money(channelValue);
-        row.cells[3].textContent=money(channelOrders?channelValue/channelOrders:0);
+
+      if(byId('mSales'))byId('mSales').textContent=money(sales);
+      if(byId('mRes')){byId('mRes').textContent=money(result);setToneSafe(byId('mRes'),result)}
+
+      // O TOTAL da tabela de canais deve somar apenas os próprios canais.
+      const channelRow=byId('monthlyChannelsTable')?.querySelector('tr.report-total-row:last-child');
+      if(channelRow?.cells?.length>=4){
+        channelRow.cells[1].textContent=String(channelOrders);
+        channelRow.cells[2].textContent=money(channelValue);
+        channelRow.cells[3].textContent=money(channelOrders?channelValue/channelOrders:0);
       }
+
+      document.querySelectorAll('#monthlyPaymentsTable tr').forEach(row=>{
+        const label=row.cells?.[0];
+        const amount=row.cells?.[1]?.querySelector('b')||row.cells?.[1];
+        const text=label?.textContent?.trim();
+        if(text==='Total informado em pagamentos'||text==='Total de vendas (Resumo Financeiro)'){
+          label.textContent='Total de vendas (Resumo Financeiro)';
+          if(amount)amount.textContent=money(sales);
+        }
+      });
     }catch{}
   }
 
@@ -97,8 +161,8 @@
   if(typeof buildSaveWarnings==='function'){
     buildSaveWarnings=function(record){
       const warnings=[];
-      if(record.date>isoToday())warnings.push('• A data selecionada está no futuro.');
-      if(record.cashCountVerified&&Math.abs(Number(record.cashDifference||0))>=0.01){
+      if(record?.date>isoToday())warnings.push('• A data selecionada está no futuro.');
+      if(record?.cashCountVerified&&Math.abs(Number(record.cashDifference||0))>=0.01){
         warnings.push('• A contagem física da gaveta tem diferença de '+money(record.cashDifference)+'.');
       }
       return warnings;
@@ -111,6 +175,17 @@
       const out=previous.apply(this,arguments);
       updateClosingFinancialTotals();
       queueMicrotask(updateClosingFinancialTotals);
+      queueMicrotask(()=>queueMicrotask(updateClosingFinancialTotals));
+      return out;
+    };
+  }
+
+  if(typeof refreshDailyReport==='function'){
+    const previous=refreshDailyReport;
+    refreshDailyReport=function(){
+      const out=previous.apply(this,arguments);
+      fixDailyReport();
+      queueMicrotask(fixDailyReport);
       return out;
     };
   }
@@ -119,24 +194,36 @@
     const previous=refreshMonthly;
     refreshMonthly=function(){
       const out=previous.apply(this,arguments);
-      fixMonthlyChannelDemonstrativeTotal();
-      queueMicrotask(fixMonthlyChannelDemonstrativeTotal);
+      fixMonthlyReport();
+      queueMicrotask(fixMonthlyReport);
       return out;
     };
   }
 
+  // Este módulo carrega por último entre as regras financeiras. Reaplica a regra canônica
+  // após os listeners legados para impedir que um cálculo antigo sobrescreva a tela.
+  function enforceAfterLegacyHandlers(){
+    queueMicrotask(()=>queueMicrotask(updateClosingFinancialTotals));
+    setTimeout(updateClosingFinancialTotals,0);
+  }
+  document.addEventListener('input',enforceAfterLegacyHandlers);
+  document.addEventListener('change',enforceAfterLegacyHandlers);
+
   window.addEventListener('pageshow',()=>setTimeout(()=>{
     updateClosingFinancialTotals();
-    fixMonthlyChannelDemonstrativeTotal();
+    fixDailyReport();
+    fixMonthlyReport();
   },0));
 
   window.XBFinancialSalesCanonical=Object.freeze({
     update:updateClosingFinancialTotals,
-    fixMonthlyChannels:fixMonthlyChannelDemonstrativeTotal
+    fixDailyReport,
+    fixMonthlyReport
   });
 
   setTimeout(()=>{
     updateClosingFinancialTotals();
-    fixMonthlyChannelDemonstrativeTotal();
+    fixDailyReport();
+    fixMonthlyReport();
   },0);
 })();
