@@ -30,6 +30,13 @@ async function fillMoney(page,id,value){
   await page.locator(`#${id}__brl`).fill(String(value));
 }
 
+async function appToday(page){
+  return page.evaluate(()=>{
+    const d=new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  });
+}
+
 async function fillBalancedClosing(page,{date,resp='Teste Automatizado',value=100}){
   await openClosing(page,date);
   await page.locator('#resp').fill(resp);
@@ -140,7 +147,8 @@ test('falha de salvamento preserva o rascunho para recuperação após reload',a
 test('fechamento excluído pode ser restaurado pelo backup íntegro',async({page})=>{
   await openCleanApp(page);
   await login(page);
-  await fillBalancedClosing(page,{date:'2026-08-19',resp:'Teste Restauração',value:48});
+  const date=await appToday(page);
+  await fillBalancedClosing(page,{date,resp:'Teste Restauração',value:48});
   await page.locator('#saveTopBtn').click();
   await expect(page.locator('#toast')).toContainText('salvo',{timeout:5000});
 
@@ -168,7 +176,7 @@ test('fechamento excluído pode ser restaurado pelo backup íntegro',async({page
 
   const restored=await page.evaluate(()=>window.XBE2E.records());
   expect(restored).toHaveLength(1);
-  expect(restored[0].date).toBe('2026-08-19');
+  expect(restored[0].date).toBe(date);
   expect(restored[0].resp).toBe('Teste Restauração');
   expect(restored[0].sales).toBe(48);
 });
