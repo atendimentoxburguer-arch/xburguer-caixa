@@ -10,15 +10,21 @@ Versão funcional atual: **4.18.3**.
 - Service Worker oficial: `service-worker.js`
 - Compatibilidade legada: `sw.js`
 - Escopo do PWA: `/xburguer-caixa/`
-- Cache: prefixo `xburguer-caixa-`
+- Cache oficial atual: `xburguer-caixa-native-v6-audit-4.18.3`
 - Namespace físico de armazenamento local: `xburguer_caixa::`
-- Banco: projeto Supabase exclusivo do X-Burguer Caixa
+- Banco: projeto Supabase exclusivo do X-Burguer Caixa (`trnngxezppeembrvxkhh`)
 
-O **X-Burguer Controle** fica no repositório `xburguer-controle`, usa o caminho `/xburguer-controle/`, outro PWA, outro cache, outro armazenamento local e outro projeto Supabase.
+## Administração e transferência
+
+Para passar o sistema para outro responsável, outra conta ou outro ChatGPT, use como referência principal:
+
+**[`MANUAL_ADMINISTRACAO_TRANSFERENCIA.md`](MANUAL_ADMINISTRACAO_TRANSFERENCIA.md)**
+
+O manual documenta acessos, regras financeiras, banco, backups, testes, GitHub Pages, rotina de saúde e checklist de transferência.
 
 ## Regra de organização
 
-Arquivos, alterações, workflows e configurações do X-Burguer Controle não devem ser adicionados neste repositório. Da mesma forma, arquivos do X-Burguer Caixa não devem ser adicionados ao repositório do Controle.
+O **X-Burguer Controle** é outro sistema e não deve ser misturado com este repositório. Arquivos, banco, PWA, cache e configurações dos dois projetos devem permanecer separados.
 
 ## Principais recursos
 
@@ -27,75 +33,91 @@ Arquivos, alterações, workflows e configurações do X-Burguer Controle não d
 - histórico com edição e exclusão controladas;
 - relatórios diário e mensal;
 - controle de pães por estoque inicial e estoque final;
-- pedidos online e vendas por canal;
+- pedidos online e vendas por canal demonstrativas;
 - despesas do dia;
 - resumo financeiro com Dinheiro (Caixa), Dinheiro (Entregas), cartões e Pix/apps;
-- conferência automática de pagamentos e contagem física opcional;
+- conferência automática e contagem física opcional;
 - backup JSON protegido por SHA-256 e restauração atômica;
 - registro das exportações de backup no Supabase;
-- snapshot diário de recuperação mantido por 30 dias;
+- snapshot diário de recuperação;
 - modo offline seguro;
 - PWA instalável e layout responsivo.
 
-## Proteção de dados e backup
+## Regra financeira oficial
 
-O sistema usa três camadas complementares de proteção:
+O **Resumo Financeiro / Formas de pagamento é a única fonte da Venda oficial**.
 
-1. **Supabase** como banco principal, com RLS, validações e auditoria de alterações.
-2. **Snapshot diário de recuperação** no próprio banco, atualizado depois de gravações críticas e mantido por 30 dias.
-3. **Backup externo JSON** para ser guardado fora do aparelho e fora do Supabase.
+`Venda = Dinheiro (Caixa) + Dinheiro (Entregas) + Cartão (Loja) + Cartão (Entregas) + Pix/Apps`
 
-O backup externo atual usa o formato `xburguer-caixa-backup-v2`, informa a quantidade de fechamentos e inclui uma assinatura **SHA-256** dos registros. Antes de restaurar um backup protegido, o aplicativo recalcula a assinatura e bloqueia a restauração se o arquivo estiver corrompido ou alterado.
+As **Vendas por Canal** — Hot, Mr. Burguer, WhatsApp, Mesa, Retirada e Entregas — são exclusivamente demonstrativas. Elas continuam salvas para análise operacional e quantidade de pedidos, mas **não são somadas novamente como receita**.
 
-O snapshot interno também possui contagem de registros e assinatura SHA-256 do payload. A lixeira de emergência verifica a assinatura antes de aceitar uma restauração de fechamento excluído.
+`Resultado = Venda oficial - Despesas`
 
-O aplicativo considera o backup externo **em dia** quando a última exportação verificada ocorreu há no máximo 7 dias. Backups antigos continuam compatíveis, mas são identificados como arquivos sem assinatura SHA-256.
+O Dashboard, relatórios e totais financeiros devem respeitar essa regra.
 
-O snapshot interno é uma segunda rede de segurança e não substitui a cópia externa. Para proteção contra perda do projeto inteiro do Supabase, é necessário manter regularmente o arquivo JSON em outro local, como OneDrive, Google Drive ou outro armazenamento externo.
+A diferença entre Resumo Financeiro e Vendas por Canal é apenas informativa e não deve impedir salvamento nem gerar dupla contabilização.
 
-## Segurança da aplicação
+## Saldo inicial e conferência física
 
-- todas as tabelas públicas usam RLS;
-- a role `anon` não possui privilégios diretos nas tabelas do sistema;
-- usuários autenticados não recebem privilégios SQL de `TRUNCATE`, `TRIGGER` ou `REFERENCES`;
-- a exclusão de fechamentos passa pelo RPC `delete_cash_closing`, com validação de usuário ativo e administrador;
-- fechamentos excluídos são preservados em recuperação com SHA-256;
-- a tela principal usa Content Security Policy para limitar scripts, conexões, frames, objetos e outros recursos;
-- a biblioteca Supabase JS usada pelo Realtime fica fixada em uma versão auditada, evitando atualização silenciosa por alias móvel;
-- o bootstrap da página inicial não utiliza JavaScript inline;
-- o CI possui validações para impedir regressões nas regras financeiras, PWA, isolamento e segurança.
+O Saldo Inicial **não é venda**. Ele representa apenas o dinheiro físico que já estava na gaveta no início do fechamento.
 
-A chave `sb_publishable_...` presente no frontend é uma **chave publicável do Supabase**. Chaves `service_role`, `sb_secret_...`, senhas, tokens privados e backups reais não devem ser adicionados ao repositório.
+`Dinheiro previsto = Saldo Inicial + Dinheiro (Caixa) + Dinheiro (Entregas) - retiradas para despesas`
 
-## Regra atual do controle de pães
+Quando a contagem física for informada:
 
-O usuário informa **Estoque inicial** e **Estoque final**. O sistema calcula automaticamente:
+`Diferença física = Dinheiro contado - Dinheiro previsto`
+
+A partir de **24/08/2026**, o Saldo Inicial segue uma cadeia de fechamentos dentro de cada mês:
+
+- no dia 01, o Saldo Inicial é manual;
+- nos demais dias, existindo fechamento anterior no mesmo mês, o valor é automático;
+- dias sem fechamento podem ser pulados;
+- o cálculo usa o último fechamento anterior realmente salvo;
+- se ainda não houver fechamento anterior no mês, o primeiro registro pode iniciar com abertura manual;
+- alterações em um fechamento anterior podem propagar o novo saldo para o próximo fechamento salvo.
+
+`Saldo Inicial do próximo fechamento = máximo entre R$ 0,00 e o Dinheiro previsto do fechamento anterior`
+
+## Dashboard mensal e lançamentos futuros
+
+O Dashboard mensal representa **o mês completo cadastrado**. Lançamentos e despesas futuras pertencentes ao mesmo mês podem fazer parte do total mensal quando já estiverem cadastrados como compromissos planejados.
+
+Se for necessário um indicador somente do realizado até a data atual, ele deve ser criado separadamente, sem alterar o total mensal.
+
+## Controle de pães
+
+O usuário informa **Estoque inicial** e **Estoque final**.
 
 `Produção = Estoque inicial - Estoque final`
 
-O **Acumulado do mês** soma as produções calculadas no mês. O campo legado **Saída** não é utilizado.
+O **Acumulado do mês** soma as produções calculadas. O campo legado **Saída** não é utilizado na regra atual.
 
-## Regras financeiras atuais
+## Proteção de dados e backup
 
-O Saldo Inicial **não é venda** e também não é uma forma de pagamento do movimento do dia. Ele representa somente o dinheiro físico que já estava na gaveta no início do fechamento.
+O sistema usa três camadas complementares:
 
-As regras canônicas são:
+1. **Supabase** como banco principal, com RLS, validações e auditoria;
+2. **Snapshot interno de recuperação** no próprio banco;
+3. **Backup externo JSON** para ser guardado fora do aparelho e fora do Supabase.
 
-- `Vendas = soma exclusiva das vendas por canal`;
-- `Pagamentos = Dinheiro (Caixa) + Dinheiro (Entregas) + Cartão (Loja) + Cartão (Entregas) + Pix/Apps`;
-- `Resultado = Vendas - Despesas`;
-- `Dinheiro previsto = Saldo Inicial + Dinheiro (Caixa) + Dinheiro (Entregas) - retiradas para despesas`;
-- `Diferença física = Dinheiro contado - Dinheiro previsto`, quando a contagem física for informada.
+O formato atual é `xburguer-caixa-backup-v2` e inclui assinatura **SHA-256** dos registros. A restauração é bloqueada se a assinatura não conferir.
 
-Assim, o saldo inicial permanece disponível para a conferência da gaveta e para formar o saldo seguinte, mas **nunca aumenta o total de vendas, faturamento, pagamentos ou resultado do dia**.
+O backup externo é considerado **em dia** quando a última exportação verificada ocorreu há no máximo 7 dias.
 
-A partir de **24/08/2026**, o **Saldo Inicial** segue uma cadeia de fechamentos dentro de cada mês, sem exigir um registro para todos os dias do calendário:
+O snapshot interno não substitui o backup externo. Para proteção contra perda do projeto inteiro do Supabase, manter cópia JSON em outro armazenamento, como OneDrive, Google Drive ou equivalente.
 
-- no **dia 01**, o Saldo Inicial é informado manualmente, iniciando o novo mês;
-- nos demais dias, quando existir um fechamento anterior no mesmo mês, o campo é calculado automaticamente e fica bloqueado para edição;
-- o cálculo usa o **último fechamento anterior que realmente estiver salvo no mesmo mês**, mesmo que existam dias sem fechamento entre eles;
-- dias sem movimento ou sem fechamento podem ser pulados e não bloqueiam lançamentos em datas posteriores;
-- se ainda não existir nenhum fechamento anterior no mês e o primeiro registro for feito depois do dia 01, esse primeiro Saldo Inicial fica manual;
-- ao existir uma sequência de fechamentos salvos, alterações anteriores propagam o novo saldo para o próximo fechamento salvo do mês.
+## Segurança da aplicação
 
-`Saldo Inicial do próximo fechamento salvo = máximo de R$ 0,00 entre (Saldo Inicial anterior + Dinheiro do Caixa anterior + Dinheiro das Entregas anterior - dinheiro retirado para despesas no fechamento anterior)`
+- tabelas públicas usam RLS;
+- a role `anon` não recebe acesso direto aos dados do sistema;
+- operações críticas passam por validações/RPCs;
+- fechamentos excluídos possuem recuperação protegida;
+- a tela principal usa Content Security Policy;
+- dependências críticas são fixadas/auditadas;
+- o CI valida regras financeiras, PWA, isolamento, backup e segurança.
+
+A chave `sb_publishable_...` usada no frontend é **publicável**. Chaves `service_role`, `sb_secret_...`, senhas, tokens privados, sessões e backups reais nunca devem ser adicionados ao repositório.
+
+## Regra para futuras alterações
+
+Alterações em cálculos financeiros devem partir de `business-rules.js` e ser acompanhadas por testes. Antes de mudar qualquer regra de negócio, leia também `MANUAL_ADMINISTRACAO_TRANSFERENCIA.md`, `ARCHITECTURE.md` e os testes existentes.
