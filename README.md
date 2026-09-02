@@ -39,7 +39,7 @@ O **X-Burguer Controle** é outro sistema e não deve ser misturado com este rep
 - conferência automática e contagem física opcional;
 - backup JSON protegido por SHA-256 e restauração atômica;
 - registro das exportações de backup no Supabase;
-- snapshot diário de recuperação;
+- snapshot diário de recuperação mantido por 30 dias;
 - modo offline seguro;
 - PWA instalável e layout responsivo.
 
@@ -97,7 +97,7 @@ O **Acumulado do mês** soma as produções calculadas. O campo legado **Saída*
 O sistema usa três camadas complementares:
 
 1. **Supabase** como banco principal, com RLS, validações e auditoria;
-2. **Snapshot interno de recuperação** no próprio banco;
+2. **Snapshot diário de recuperação mantido por 30 dias** no próprio banco;
 3. **Backup externo JSON** para ser guardado fora do aparelho e fora do Supabase.
 
 O formato atual é `xburguer-caixa-backup-v2` e inclui assinatura **SHA-256** dos registros. A restauração é bloqueada se a assinatura não conferir.
