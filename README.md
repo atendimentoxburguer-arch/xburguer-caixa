@@ -14,14 +14,6 @@ Versão funcional atual: **4.18.3**.
 - Namespace físico de armazenamento local: `xburguer_caixa::`
 - Banco: projeto Supabase exclusivo do X-Burguer Caixa (`trnngxezppeembrvxkhh`)
 
-## Administração e transferência
-
-Para passar o sistema para outro responsável, outra conta ou outro ChatGPT, use como referência principal:
-
-**[`MANUAL_ADMINISTRACAO_TRANSFERENCIA.md`](MANUAL_ADMINISTRACAO_TRANSFERENCIA.md)**
-
-O manual documenta acessos, regras financeiras, banco, backups, testes, GitHub Pages, rotina de saúde e checklist de transferência.
-
 ## Regra de organização
 
 O **X-Burguer Controle** é outro sistema e não deve ser misturado com este repositório. Arquivos, banco, PWA, cache e configurações dos dois projetos devem permanecer separados.
@@ -120,4 +112,4 @@ A chave `sb_publishable_...` usada no frontend é **publicável**. Chaves `servi
 
 ## Regra para futuras alterações
 
-Alterações em cálculos financeiros devem partir de `business-rules.js` e ser acompanhadas por testes. Antes de mudar qualquer regra de negócio, leia também `MANUAL_ADMINISTRACAO_TRANSFERENCIA.md`, `ARCHITECTURE.md` e os testes existentes.
+Alterações em cálculos financeiros devem partir de `business-rules.js` e ser acompanhadas por testes. Antes de mudar qualquer regra de negócio, leia também `ARCHITECTURE.md` e os testes existentes.
