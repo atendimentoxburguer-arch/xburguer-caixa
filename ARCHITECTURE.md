@@ -6,8 +6,6 @@ Versão funcional: **4.18.3**.
 
 A arquitetura mantém a interface atual e separa regras de negócio, persistência, backup e sincronização para reduzir regressões em futuras alterações.
 
-Para transferência de responsabilidade e operação por outro administrador ou ChatGPT, consulte também `MANUAL_ADMINISTRACAO_TRANSFERENCIA.md`.
-
 ## Camadas
 
 1. **UI** — `shell*.js`, estilos e funções de apresentação.
