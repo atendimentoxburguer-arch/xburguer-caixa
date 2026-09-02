@@ -19,12 +19,21 @@ async function fillMoney(page,id,value){
   await page.locator(`#${id}__brl`).fill(String(value));
 }
 
+async function appToday(page){
+  return page.evaluate(()=>{
+    const d=new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  });
+}
+
 test('resumo financeiro é a venda oficial e canais permanecem demonstrativos',async({page})=>{
   await openCleanApp(page);
   await login(page);
+  const date=await appToday(page);
+  const month=date.slice(0,7);
 
   await page.locator('[data-page="fechamento"]').click();
-  await page.locator('#date').fill('2026-08-18');
+  await page.locator('#date').fill(date);
   await page.locator('#date').dispatchEvent('change');
   await page.locator('#resp').fill('Teste Separação Financeira');
 
@@ -58,7 +67,7 @@ test('resumo financeiro é a venda oficial e canais permanecem demonstrativos',a
   await expect(page.locator('#dTicket')).toContainText('75,00');
 
   await page.locator('[data-page="mensal"]').click();
-  await page.locator('#dailyReportDate').fill('2026-08-18');
+  await page.locator('#dailyReportDate').fill(date);
   await page.locator('#dailyReportDate').dispatchEvent('change');
   await expect(page.locator('#drSales')).toContainText('150,00');
   await expect(page.locator('#drResult')).toContainText('150,00');
@@ -66,7 +75,7 @@ test('resumo financeiro é a venda oficial e canais permanecem demonstrativos',a
   await expect(page.locator('#dailyFinancialRows')).toContainText('Venda oficial');
 
   await page.locator('#monthlyReportTab').click();
-  await page.locator('#monthPicker').fill('2026-08');
+  await page.locator('#monthPicker').fill(month);
   await page.locator('#monthPicker').dispatchEvent('change');
   await expect(page.locator('#mSales')).toContainText('150,00');
   await expect(page.locator('#mRes')).toContainText('150,00');
