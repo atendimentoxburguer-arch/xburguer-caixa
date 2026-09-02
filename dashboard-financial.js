@@ -13,18 +13,34 @@
     return round(Number(record?.cash||0)+Number(record?.deliveryCash||0)+Number(record?.cardOut||0)+Number(record?.onlinePayment||0)+Number(record?.deliveryCard||0));
   };
 
+  function dailyTotals(records){
+    const totals=new Map();
+    for(const r of records){
+      const date=String(r?.date||'');
+      if(!date)continue;
+      const current=totals.get(date)||{date,sales:0,expense:0,orders:0};
+      current.sales=round(current.sales+financialSales(r));
+      current.expense=round(current.expense+Number(r?.expense||0));
+      current.orders+=Number(r?.orders||0);
+      totals.set(date,current);
+    }
+    return totals;
+  }
+
   function drawFinancialChart(targetId,records){
     const month=records.map(r=>typeof normalize==='function'?normalize(r):r);
     const ym=month[0]?.date?.slice(0,7)||(byId('monthPicker')?.value||((typeof monthNow==='function')?monthNow():''));
     const [year,monthNumber]=String(ym||'').split('-').map(Number);
     const daysInMonth=(year&&monthNumber)?new Date(year,monthNumber,0).getDate():31;
-    const max=Math.max(...month.flatMap(r=>[financialSales(r),Number(r?.expense||0)]),1);
+    const daily=dailyTotals(month);
+    const values=[...daily.values()];
+    const max=Math.max(...values.flatMap(r=>[r.sales,r.expense]),1);
     const steps=[max,max*.75,max*.5,max*.25,0];
     let bars='';
     for(let d=1;d<=daysInMonth;d++){
       const ds=`${ym}-${String(d).padStart(2,'0')}`;
-      const r=month.find(x=>x.date===ds);
-      const s=r?financialSales(r):0;
+      const r=daily.get(ds);
+      const s=Number(r?.sales||0);
       const e=Number(r?.expense||0);
       bars+=`<div class="day-col" title="Dia ${d}: vendas ${money(s)} | despesas ${money(e)}"><div class="bar-pair"><div class="bar-sales" style="height:${Math.round(s/max*100)}%"></div><div class="bar-exp" style="height:${Math.round(e/max*100)}%"></div></div><div class="day-label">${d}</div></div>`;
     }
@@ -41,7 +57,8 @@
       const expenses=round(sum(r=>r.expense));
       const orders=sum(r=>r.orders);
       const result=round(sales-expenses);
-      const days=month.filter(r=>financialSales(r)||r.orders||r.expense).length;
+      const daily=dailyTotals(month);
+      const days=[...daily.values()].filter(r=>r.sales||r.orders||r.expense).length;
 
       if(byId('dSales')){
         byId('dSales').textContent=money(sales);
@@ -62,13 +79,15 @@
       drawFinancialChart('chart',month);
 
       const all=(typeof load==='function'?load():[]).map(r=>typeof normalize==='function'?normalize(r):r);
-      const last=all.at(-1);
+      const last=[...all].sort((a,b)=>String(a?.date||'').localeCompare(String(b?.date||''))||String(a?.savedAt||'').localeCompare(String(b?.savedAt||''))).at(-1);
       if(last&&byId('lastClosing')){
         const lastSales=financialSales(last);
         byId('lastClosing').className='';
         byId('lastClosing').innerHTML=`<div class="data-row"><span>Data</span><b>${new Date(last.date+'T12:00:00').toLocaleDateString('pt-BR')}</b><span></span></div><div class="data-row"><span>Responsável</span><b>${typeof escapeHtml==='function'?escapeHtml(last.resp||'—'):(last.resp||'—')}</b><span></span></div><div class="data-row"><span>Vendas</span><b class="money">${money(lastSales)}</b><span>${last.orders||0} pedidos</span></div><div class="data-row"><span>Resultado</span><b class="${(lastSales-Number(last.expense||0))<0?'negative':'positive'}">${money(round(lastSales-Number(last.expense||0)))}</b><span></span></div>`;
       }
-    }catch{}
+    }catch(err){
+      console.error('[X-Burguer Caixa] Falha ao atualizar Dashboard financeiro.');
+    }
   }
 
   if(typeof refreshDashboard==='function'){
