@@ -7,10 +7,9 @@ function refreshDailyReport(){
   const expectedCash=Number(r.expectedCash??((r.opening||0)+(r.cash||0)+(r.deliveryCash||0)-(r.cashOut||0)));
   const cashCountVerified=!!r.cashCountVerified;
   const cashDiff=cashCountVerified?Number(r.cashDifference??((r.countedCash||0)-expectedCash)):0;
-  const paymentDiff=Number(r.paymentDifference??(paymentTotal-(r.sales||0)));
   $('drSales').textContent=br(r.sales);$('drOrders').textContent=(r.orders||0)+' pedidos';$('drExpenses').textContent=br(r.expense);$('drExpenseCount').textContent=expenses.length+' lançamentos';$('drResult').textContent=br(r.result);setTone($('drResult'),r.result);
   if(cashCountVerified){
-    $('drCashDiff').textContent=br(cashDiff);setTone($('drCashDiff'),cashDiff);$('drCashStatus').textContent=cashDiff===0?'Caixa conferido':cashDiff>0?'Sobra de caixa':'Falta de caixa';
+    $('drCashDiff').textContent=br(cashDiff);setTone($('drCashDiff'),cashDiff);$('drCashStatus').textContent=Math.abs(cashDiff)<.005?'Caixa conferido':cashDiff>0?'Sobra de caixa':'Falta de caixa';
   }else{
     $('drCashDiff').textContent='—';$('drCashDiff').classList.remove('positive','negative');$('drCashStatus').textContent='Contagem física opcional';
   }
@@ -22,7 +21,7 @@ function refreshDailyReport(){
     reportValueRow('Cartão — loja',r.cardOut),
     reportValueRow('Pix / app',r.onlinePayment),
     reportValueRow('Cartão — entregas',r.deliveryCard),
-    reportValueRow('Total informado em pagamentos',paymentTotal,Math.abs(paymentDiff)<.005?'Conferido':`Dif. ${br(paymentDiff)}`),
+    reportValueRow('Total de vendas (Resumo Financeiro)',paymentTotal,'Venda oficial'),
     reportValueRow('Despesas do dia',r.expense,'Saída'),
     reportValueRow('Dinheiro retirado p/ despesas',r.cashOut,'Saída do caixa'),
     reportValueRow('Dinheiro esperado',expectedCash),
@@ -49,15 +48,16 @@ function refreshDailyReport(){
 function refreshMonthly(){
   const ym=$('monthPicker').value||monthNow(),month=monthRecords(ym).map(normalize).sort((a,b)=>a.date.localeCompare(b.date)),sum=f=>month.reduce((a,r)=>a+Number(f(r)||0),0),sales=sum(r=>r.sales),exp=sum(r=>r.expense),result=sales-exp,orders=sum(r=>r.orders),days=month.filter(r=>r.sales||r.orders||r.expense).length,dt=new Date(ym+'-01T12:00:00'),name=dt.toLocaleDateString('pt-BR',{month:'long',year:'numeric'}),expenses=month.flatMap(r=>(r.expenses||[]).map(e=>({date:r.date,...e})));
   const cashBox=sum(r=>r.cash),cashDelivery=sum(r=>r.deliveryCash),cashTotal=cashBox+cashDelivery;
+  const channelSales=month.reduce((total,r)=>total+Number(r.channelSales??((r.channels||[]).reduce((a,c)=>a+Number(c?.v||0),0)),0);
   $('mSales').textContent=br(sales);$('mOrders').textContent=orders+' pedidos';$('mExp').textContent=br(exp);$('mExpenseCount').textContent=expenses.length+' lançamentos';$('mRes').textContent=br(result);setTone($('mRes'),result);$('mResHint').textContent=result>0?'Resultado positivo':result<0?'Resultado negativo':'Sem movimento';$('mAvg').textContent=br(days?sales/days:0);$('mDays').textContent=days+' dias com movimento';$('mCash').textContent=br(cashTotal);$('mCard').textContent=br(sum(r=>(r.cardOut||0)+(r.deliveryCard||0)));$('mOnline').textContent=br(sum(r=>r.onlinePayment));$('monthTitle').textContent=name.charAt(0).toUpperCase()+name.slice(1);$('extractTitle').textContent='Extrato diário detalhado — '+name;
-  $('monthlyChannelsTable').innerHTML=channels.map((channelName,i)=>{const q=month.reduce((a,r)=>a+Number(r.channels?.[i]?.q||0),0),v=month.reduce((a,r)=>a+Number(r.channels?.[i]?.v||0),0);return `<tr><td><b>${escapeHtml(channelName)}</b></td><td>${q}</td><td>${br(v)}</td><td>${br(q?v/q:0)}</td></tr>`}).join('')+`<tr class="report-total-row"><td>TOTAL</td><td>${orders}</td><td>${br(sales)}</td><td>${br(orders?sales/orders:0)}</td></tr>`;
+  $('monthlyChannelsTable').innerHTML=channels.map((channelName,i)=>{const q=month.reduce((a,r)=>a+Number(r.channels?.[i]?.q||0),0),v=month.reduce((a,r)=>a+Number(r.channels?.[i]?.v||0),0);return `<tr><td><b>${escapeHtml(channelName)}</b></td><td>${q}</td><td>${br(v)}</td><td>${br(q?v/q:0)}</td></tr>`}).join('')+`<tr class="report-total-row"><td>TOTAL</td><td>${orders}</td><td>${br(channelSales)}</td><td>${br(orders?channelSales/orders:0)}</td></tr>`;
   const payments=[
     ['Dinheiro — caixa',cashBox],
     ['Dinheiro — entregas',cashDelivery],
     ['Cartão — loja',sum(r=>r.cardOut)],
     ['Cartão — entregas',sum(r=>r.deliveryCard)],
     ['Pix / app',sum(r=>r.onlinePayment)],
-    ['Total informado em pagamentos',sum(r=>Number(r.paymentTotal??((r.cash||0)+(r.deliveryCash||0)+(r.cardOut||0)+(r.onlinePayment||0)+(r.deliveryCard||0))))],
+    ['Total de vendas (Resumo Financeiro)',sales],
     ['Despesas',exp],
     ['Dinheiro retirado p/ despesas',sum(r=>r.cashOut)],
     ['Diferenças físicas informadas',sum(r=>r.cashCountVerified?r.cashDifference:0)]
