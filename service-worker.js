@@ -1,4 +1,4 @@
-// Revisão de assets: 2026-09-02 finance6
+// Revisão de assets: 2026-09-05 history1
 const CACHE_NAME = "xburguer-caixa-native-v6-audit-4.18.3";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
@@ -26,6 +26,7 @@ const PRECACHE = [
   "./version.css",
   "./bread-summary.css",
   "./online-orders-equal.css",
+  "./history-table-actions.css",
 
   "./frame-guard.js",
   "./shell1.js",
