@@ -123,10 +123,10 @@
     });
 
     proxy.addEventListener('focus',()=>{
+      // Troca apenas a apresentação formatada pela forma editável.
+      // Não força o cursor após o foco: isso podia disputar com seleção/substituição
+      // do navegador e concatenar o valor anterior ao novo em uma reedição rápida.
       proxy.value=editable(nativeValue.get.call(original));
-      requestAnimationFrame(()=>{
-        try{proxy.setSelectionRange(proxy.value.length,proxy.value.length)}catch{}
-      });
     });
 
     proxy.addEventListener('input',()=>{
