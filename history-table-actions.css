@@ -1,0 +1,91 @@
+/* X-Burguer Caixa — Histórico com ações sempre acessíveis */
+#historico .table-wrap{
+  position:relative;
+  overflow-x:auto;
+  isolation:isolate;
+}
+
+/*
+  A tabela continua responsiva, mas a observação não pode mais aumentar
+  indefinidamente a largura e empurrar Editar/Excluir para fora da tela.
+*/
+#historico .table{
+  width:100%;
+  min-width:900px;
+  table-layout:fixed;
+}
+
+#historico .table th:nth-child(1),
+#historico .table td:nth-child(1){width:88px}
+#historico .table th:nth-child(2),
+#historico .table td:nth-child(2){width:122px}
+#historico .table th:nth-child(3),
+#historico .table td:nth-child(3){width:86px}
+#historico .table th:nth-child(4),
+#historico .table td:nth-child(4){width:90px}
+#historico .table th:nth-child(5),
+#historico .table td:nth-child(5){width:98px}
+#historico .table th:nth-child(6),
+#historico .table td:nth-child(6){width:64px}
+#historico .table th:nth-child(7),
+#historico .table td:nth-child(7){width:82px}
+#historico .table th:nth-child(9),
+#historico .table td:nth-child(9){width:130px}
+
+/* Observação ocupa somente o espaço disponível e quebra linhas. */
+#historico .table th:nth-child(8),
+#historico .table td:nth-child(8){
+  width:auto;
+  min-width:0;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  line-height:1.35;
+}
+
+/* Ações ficam presas na borda direita da tabela. */
+#historico .table thead th:last-child,
+#historico #historyTable td:last-child{
+  position:sticky;
+  right:0;
+  white-space:nowrap;
+  box-shadow:-10px 0 14px -14px rgba(18,41,61,.55);
+}
+
+#historico .table thead th:last-child{
+  z-index:5;
+  background:#EEF5F8;
+}
+
+#historico #historyTable td:last-child{
+  z-index:3;
+  background:var(--surface,#fff);
+}
+
+#historico #historyTable tr:nth-child(even) td:last-child{
+  background:#FCFEFF;
+}
+
+#historico #historyTable tr:hover td:last-child{
+  background:#F3F9FB;
+}
+
+#historico .table-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px;
+  flex-wrap:nowrap;
+}
+
+#historico .table-actions .link-btn{
+  flex:0 0 auto;
+}
+
+@media(max-width:850px){
+  #historico .table{min-width:780px}
+  #historico .table th:nth-child(2),
+  #historico .table td:nth-child(2){width:108px}
+  #historico .table th:nth-child(9),
+  #historico .table td:nth-child(9){width:124px}
+}
