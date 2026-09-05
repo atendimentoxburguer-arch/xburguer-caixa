@@ -118,9 +118,13 @@ jobs:
 
           app2=read('app2.js')
           need("const paymentTotal=cash+deliveryCash+n('cardOut')+n('online')+n('deliveryCard')" in app2,'Cálculo-base de pagamentos está incorreto.')
+          need("const sales=paymentTotal" in app2,'Venda-base precisa usar exclusivamente o Resumo Financeiro.')
+          need("channelSales=v.reduce((a,b)=>a+b,0)" in app2,'Vendas por canal não estão separadas como demonstrativo.')
           need("const expectedCash=opening+cash+deliveryCash-cashOut" in app2,'Cálculo-base de dinheiro esperado não inclui o saldo inicial corretamente.')
           need("summaryTotal:paymentTotal" in app2,'Resumo financeiro voltou a incluir valor indevido.')
-          need("sales=v.reduce((a,b)=>a+b,0)" in app2,'Vendas-base não estão exclusivas aos canais.')
+          need("paymentDifference:paymentTotal-channelSales" in app2,'Diferença demonstrativa não compara Resumo Financeiro com canais.')
+          need("salesBasis:'financial-summary'" in app2,'Registro-base perdeu a identificação da venda financeira canônica.')
+          need('rascunho legado preservado porque a migração local falhou' in app2,'Migração de rascunho legado pode voltar a apagar dados em caso de falha local.')
 
           app3=read('app3.js')
           need('rec.deliveryCash' in app3,'Validação-base não reconhece Dinheiro (Entregas).')
@@ -132,7 +136,10 @@ jobs:
           app4=read('app4.js')
           need("(r.opening||0)+(r.cash||0)+(r.deliveryCash||0)-(r.cashOut||0)" in app4,'Relatório diário não usa dinheiro esperado canônico.')
           need("reportValueRow('Dinheiro — entregas'" in app4,'Relatório diário não detalha dinheiro das entregas.')
+          need("reportValueRow('Total de vendas (Resumo Financeiro)'" in app4,'Relatório diário perdeu a venda oficial do Resumo Financeiro.')
           need("<td>${br(r.deliveryCash||0)}</td>" in app4 and 'colspan="14"' in app4,'Extrato mensal não contém a coluna de dinheiro das entregas.')
+          need("['Total de vendas (Resumo Financeiro)',sales]" in app4,'Relatório mensal não usa a venda financeira oficial.')
+          need("${br(channelSales)}" in app4,'Total mensal dos canais voltou a usar receita financeira.')
           need("window.XB_APP_VERSION||'4.18.3'" in app4,'Fallback de backup está com versão incorreta.')
 
           hardening=read('system-hardening.js')
@@ -145,12 +152,19 @@ jobs:
           need("const VERSION='4.18.3';" in rules,'Módulo canônico está com versão incorreta.')
           need('num(record.opening)+' in rules and 'num(record.cash)+' in rules and 'num(record.deliveryCash)-' in rules and 'num(record.cashOut)' in rules,'Dinheiro esperado canônico está incorreto.')
           need('function financialSummaryTotal(record={})' in rules and 'return paymentTotal(record);' in rules,'Resumo canônico não pode incluir saldo inicial.')
+          need('function channelSales(record={})' in rules,'Regra demonstrativa de canais está ausente.')
           need('function nextOpeningBalance(previousRecord={})' in rules and 'Math.max(0,expectedCash(previousRecord))' in rules,'Saldo seguinte não usa o dinheiro físico remanescente.')
 
           integrity=read('financial-integrity.js')
-          need("channels.reduce((total,_,i)=>total+value('v'+i),0)" in integrity,'Integridade: vendas não estão exclusivas aos canais.')
-          need("value('cash')+value('deliveryCash')+value('cardOut')+value('online')+value('deliveryCard')" in integrity,'Integridade: pagamentos incluem/excluem campos incorretos.')
+          need('function formFinancialSales()' in integrity,'Integridade perdeu a venda financeira oficial.')
+          need("value('cash')+value('deliveryCash')+value('cardOut')+value('online')+value('deliveryCard')" in integrity,'Integridade: venda financeira inclui/exclui campos incorretos.')
+          need('function formChannelSales()' in integrity and "channels.reduce((total,_,i)=>total+value('v'+i),0)" in integrity,'Integridade não mantém canais como demonstrativo separado.')
+          need('const sales=formFinancialSales();' in integrity and 'const channelSales=formChannelSales();' in integrity,'Integridade voltou a misturar venda financeira e canais.')
           need("value('opening')+value('cash')+value('deliveryCash')-value('cashOut')" in integrity,'Integridade: dinheiro esperado está incorreto.')
+
+          automatic=read('automatic-conference.js')
+          need("cells?.[12]" in automatic,'Relatório mensal pode apagar a coluna de Pedidos ao tratar contagem física opcional.')
+          need('paymentDifference' not in automatic.split('buildSaveWarnings=function(record){',1)[-1].split("if(typeof refreshDailyReport",1)[0],'Diferença entre Resumo e canais voltou a bloquear/alertar o salvamento.')
 
           delivery=read('delivery-cash.js')
           need('id="deliveryCash"' in delivery and 'Dinheiro (Entregas)' in delivery,'Campo Dinheiro (Entregas) não é criado corretamente.')
@@ -189,6 +203,8 @@ jobs:
 
           currency=read('currency-format.js')
           need("'deliveryCash'" in currency,'Campo Dinheiro (Entregas) não recebe formatação BRL.')
+          need('function normalizeTypedNumber(value)' in currency and 'Padrão brasileiro: 1.234,56 -> 1234.56.' in currency,'Parser BRL robusto foi removido.')
+          need('parse:parseTyped' in currency,'Parser monetário deixou de ser testável pela suíte E2E.')
 
           online_css=read('online-orders-equal.css')
           need('minmax(0,1fr) minmax(0,1fr)' in online_css,'Quantidade e valor dos pedidos online deixaram de ter larguras iguais.')
@@ -216,5 +232,5 @@ jobs:
           if errors:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
-          print('OK: Caixa validado em regras financeiras, relatórios, PWA, backup, isolamento, pães, Realtime e operações críticas.')
+          print('OK: Caixa validado em regras financeiras, relatórios, PWA, backup, isolamento, pães, Realtime, rascunhos e operações críticas.')
           PY
