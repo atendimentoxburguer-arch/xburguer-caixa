@@ -51,9 +51,7 @@
     return String(roundMoney(n));
   }
 
-  function parseTyped(value){
-    return normalizeTypedNumber(value);
-  }
+  function parseTyped(value){return normalizeTypedNumber(value)}
 
   function formatBRL(raw){
     if(raw===''||raw===null||raw===undefined)return '';
@@ -65,15 +63,10 @@
     if(raw===''||raw===null||raw===undefined)return '';
     const n=Number(raw);
     if(!Number.isFinite(n))return '';
-    const rounded=roundMoney(Math.max(0,n));
-    return String(rounded).replace('.',',');
+    return String(roundMoney(Math.max(0,n))).replace('.',',');
   }
 
   function removeStaleRawField(id,current){
-    // As despesas são recriadas ao trocar data, limpar ou carregar um fechamento.
-    // Os inputs numéricos originais ficam neste host oculto para manter compatibilidade
-    // com os cálculos antigos. Remove qualquer versão anterior com o mesmo ID para que
-    // document.getElementById() nunca leia um campo velho e zerado.
     [...rawHost.children].forEach(el=>{
       if(el!==current&&el instanceof HTMLInputElement&&el.id===id)el.remove();
     });
@@ -83,7 +76,6 @@
     if(!(original instanceof HTMLInputElement))return;
     const id=original.id||'';
     if(!isMoneyId(id)||original.dataset.currencyRaw==='1')return;
-
     const parent=original.parentNode;
     if(!parent)return;
 
@@ -110,7 +102,6 @@
     rawHost.appendChild(original);
     original.dataset.currencyRaw='1';
 
-    // Mantém o ID original como fonte numérica para todo o código já existente.
     Object.defineProperty(original,'value',{
       configurable:true,
       enumerable:true,
@@ -123,10 +114,11 @@
     });
 
     proxy.addEventListener('focus',()=>{
-      // Troca apenas a apresentação formatada pela forma editável.
-      // Não força o cursor após o foco: isso podia disputar com seleção/substituição
-      // do navegador e concatenar o valor anterior ao novo em uma reedição rápida.
+      // Ao entrar no campo, mostra o número em formato editável e seleciona tudo.
+      // Assim uma nova digitação substitui integralmente o valor anterior, inclusive
+      // em automação, teclado físico, toque ou reedições rápidas consecutivas.
       proxy.value=editable(nativeValue.get.call(original));
+      try{proxy.select()}catch{}
     });
 
     proxy.addEventListener('input',()=>{
@@ -149,13 +141,9 @@
   }
 
   scan(document);
-
-  // Vendas por canal e despesas são criadas dinamicamente.
   const observer=new MutationObserver(mutations=>{
     for(const mutation of mutations){
-      mutation.addedNodes.forEach(node=>{
-        if(node.nodeType===1)scan(node);
-      });
+      mutation.addedNodes.forEach(node=>{if(node.nodeType===1)scan(node)});
     }
   });
   observer.observe(document.body,{childList:true,subtree:true});
