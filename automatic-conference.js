@@ -71,12 +71,11 @@
     };
   }
 
+  /* A diferença entre Resumo Financeiro e canais é apenas demonstrativa.
+     Só data futura e divergência da contagem física exigem confirmação. */
   buildSaveWarnings=function(record){
     const warnings=[];
     if(record.date>isoToday())warnings.push('• A data selecionada está no futuro.');
-    if(Math.abs(Number(record.paymentDifference||0))>=0.01){
-      warnings.push('• Pagamentos × vendas estão diferentes em '+br(record.paymentDifference)+'.');
-    }
     if(record.cashCountVerified&&Math.abs(Number(record.cashDifference||0))>=0.01){
       warnings.push('• A contagem física da gaveta tem diferença de '+br(record.cashDifference)+'.');
     }
@@ -139,7 +138,8 @@
       const month=monthRecords(ym).map(normalize).sort((a,b)=>a.date.localeCompare(b.date));
       const rows=[...document.querySelectorAll('#monthTable tr')];
       month.forEach((record,index)=>{
-        const cell=rows[index]?.cells?.[11];
+        /* Coluna 12 é Diferença Caixa. A coluna 11 é Pedidos e nunca deve ser apagada. */
+        const cell=rows[index]?.cells?.[12];
         if(cell&&!record.cashCountVerified){cell.textContent='—';cell.classList.remove('positive','negative');}
       });
       return result;
