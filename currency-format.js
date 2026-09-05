@@ -1,4 +1,4 @@
-/* X-Burguer Caixa — formatação monetária BRL v4.17.1 */
+/* X-Burguer Caixa — formatação monetária BRL v4.18.3 */
 (function(){
   const nativeValue=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
   if(!nativeValue?.get||!nativeValue?.set)return;
@@ -18,22 +18,41 @@
   const brl=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
   const roundMoney=n=>Math.round((Number(n)+Number.EPSILON)*100)/100;
 
-  function parseTyped(value){
-    let s=String(value??'').trim();
-    if(!s)return '';
-    s=s.replace(/R\$/gi,'').replace(/\s+/g,'');
+  function normalizeTypedNumber(value){
+    let s=String(value??'').trim().replace(/R\$/gi,'').replace(/\s+/g,'');
     if(!s)return '';
 
-    // Com vírgula, interpreta no padrão brasileiro: 1.234,56.
-    if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');
+    s=s.replace(/[^0-9.,]/g,'');
+    if(!s)return '';
 
-    // Valores financeiros deste sistema são sempre iguais ou maiores que zero.
-    s=s.replace(/[^0-9.]/g,'');
+    if(s.includes(',')){
+      // Padrão brasileiro: 1.234,56 -> 1234.56.
+      const comma=s.lastIndexOf(',');
+      const whole=s.slice(0,comma).replace(/[.,]/g,'');
+      const fraction=s.slice(comma+1).replace(/[.,]/g,'');
+      s=whole+(fraction?'.'+fraction:'');
+    }else{
+      const dots=(s.match(/\./g)||[]).length;
+      if(dots>1){
+        // Sem vírgula e com vários pontos, assume separadores de milhar: 1.234.567.
+        s=s.replace(/\./g,'');
+      }else if(dots===1){
+        const [whole='',fraction='']=s.split('.');
+        // No Brasil, 1.234 normalmente significa mil duzentos e trinta e quatro,
+        // enquanto 12.34 continua sendo aceito como decimal digitado por teclado internacional.
+        if(/^\d{1,3}$/.test(whole)&&/^\d{3}$/.test(fraction))s=whole+fraction;
+      }
+    }
+
     const firstDot=s.indexOf('.');
     if(firstDot>=0)s=s.slice(0,firstDot+1)+s.slice(firstDot+1).replace(/\./g,'');
     const n=Number(s);
     if(!Number.isFinite(n)||n<0)return '';
     return String(roundMoney(n));
+  }
+
+  function parseTyped(value){
+    return normalizeTypedNumber(value);
   }
 
   function formatBRL(raw){
@@ -142,6 +161,8 @@
   observer.observe(document.body,{childList:true,subtree:true});
 
   window.XBurguerCurrency={
+    parse:parseTyped,
+    format:formatBRL,
     refresh(){
       document.querySelectorAll('.currency-proxy').forEach(proxy=>{
         const original=document.getElementById(proxy.dataset.currencyFor);
