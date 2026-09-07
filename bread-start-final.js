@@ -125,7 +125,7 @@
     const note=panel?.querySelector('.bread-note');
     if(note){
       note.textContent=automatic
-        ?`Estoque inicial automático: veio do estoque final de ${formatDate(automatic.sourceDate)}. Informe apenas o estoque final de hoje; a produção é estoque inicial − estoque final.`
+        ?`Estoque inicial automático: veio do estoque final de ${formatDate(automatic.sourceDate)}. Informe o estoque final de hoje para calcular a produção. Se não fizer a contagem neste fechamento, o estoque permanece igual e a produção fica 0.`
         :'Primeiro controle disponível: informe o estoque inicial e o estoque final. A partir do próximo fechamento, o estoque final restante será levado automaticamente como estoque inicial.';
     }
   }
@@ -149,9 +149,11 @@
       const targetDate=record.date||dateOverride||byId('date')?.value||isoToday();
       const automatic=automaticBreadOpening(targetDate);
       const idealStart=automatic?automatic.ideal:qty('idealStart');
-      const idealFinal=qty('idealProd');
       const gourmetStart=automatic?automatic.gourmet:qty('gourmetStart');
-      const gourmetFinal=qty('gourmetProd');
+      const idealFinalRaw=String(byId('idealProd')?.value??'').trim();
+      const gourmetFinalRaw=String(byId('gourmetProd')?.value??'').trim();
+      const idealFinal=idealFinalRaw===''&&automatic?idealStart:qty('idealProd');
+      const gourmetFinal=gourmetFinalRaw===''&&automatic?gourmetStart:qty('gourmetProd');
 
       record.breads={
         ...(record.breads||{}),
@@ -204,10 +206,14 @@
       ];
 
       for(const [name,startId,finalId,start,final] of breadPairs){
-        const startRaw=String(byId(startId)?.value??'').trim();
+        const startInput=byId(startId);
+        const startRaw=String(startInput?.value??'').trim();
         const finalRaw=String(byId(finalId)?.value??'').trim();
-        if(Boolean(startRaw)!==Boolean(finalRaw))return`Informe o estoque inicial e o estoque final do ${name}.`;
-        if(Number(final)>Number(start))return`O estoque final do ${name} não pode ser maior que o estoque inicial.`;
+        const automatic=startInput?.dataset.autoBreadOpening==='1';
+
+        if(automatic&&finalRaw==='')continue;
+        if(!automatic&&Boolean(startRaw)!==Boolean(finalRaw))return`Informe o estoque inicial e o estoque final do ${name}.`;
+        if(finalRaw!==''&&Number(final)>Number(start))return`O estoque final do ${name} não pode ser maior que o estoque inicial.`;
       }
       return previousValidateRecord(rec);
     };
