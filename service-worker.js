@@ -1,5 +1,5 @@
-// Revisão de assets: 2026-09-07 bread-rollover1
-const CACHE_NAME = "xburguer-caixa-native-v6-bread-rollover-4.18.3";
+// Revisão de assets: 2026-09-07 bread-rollover2
+const CACHE_NAME = "xburguer-caixa-native-v6-bread-rollover2-4.18.3";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
   "./",
