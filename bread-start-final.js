@@ -4,6 +4,7 @@
 
   const byId=id=>document.getElementById(id);
   const qty=id=>Number(byId(id)?.value||0);
+  const integerStock=value=>Math.max(0,Math.trunc(Number(value)||0));
 
   function computedProduction(startId,finalInputId){
     return qty(startId)-qty(finalInputId);
@@ -12,8 +13,69 @@
   function canonicalBreadFinal(breads,prefix){
     const start=Number(breads?.[prefix+'Start']||0);
     const storedFinal=breads?.[prefix+'Final'];
-    if(storedFinal!==undefined&&storedFinal!==null&&storedFinal!=='')return Number(storedFinal||0);
-    return start-Number(breads?.[prefix+'Prod']||0);
+    if(storedFinal!==undefined&&storedFinal!==null&&storedFinal!=='')return integerStock(storedFinal);
+    return integerStock(start-Number(breads?.[prefix+'Prod']||0));
+  }
+
+  function previousBreadClosing(date){
+    if(!date||typeof load!=='function')return null;
+    return load()
+      .map(normalize)
+      .filter(r=>r?.date&&String(r.date)<String(date))
+      .sort((a,b)=>String(a.date).localeCompare(String(b.date)))
+      .at(-1)||null;
+  }
+
+  function automaticBreadOpening(date){
+    const previous=previousBreadClosing(date);
+    if(!previous)return null;
+    return {
+      sourceDate:previous.date,
+      ideal:canonicalBreadFinal(previous.breads||{},'ideal'),
+      gourmet:canonicalBreadFinal(previous.breads||{},'gourmet')
+    };
+  }
+
+  function formatDate(date){
+    if(!date)return'';
+    try{return new Date(date+'T12:00:00').toLocaleDateString('pt-BR')}catch{return date}
+  }
+
+  function setStartFieldState(id,value,automatic,sourceDate=''){
+    const input=byId(id);
+    if(!input)return;
+    const label=input.closest('.bread-cell')?.querySelector('span');
+
+    if(automatic){
+      input.value=String(integerStock(value));
+      input.readOnly=true;
+      input.dataset.autoBreadOpening='1';
+      input.dataset.breadSourceDate=sourceDate;
+      input.title='Automático: estoque final de '+formatDate(sourceDate);
+      input.setAttribute('aria-readonly','true');
+      if(label)label.textContent='Est. inicial (auto)';
+    }else{
+      input.readOnly=false;
+      delete input.dataset.autoBreadOpening;
+      delete input.dataset.breadSourceDate;
+      input.removeAttribute('title');
+      input.removeAttribute('aria-readonly');
+      if(label)label.textContent='Est. inicial';
+    }
+  }
+
+  function applyAutomaticBreadOpening(date){
+    const targetDate=date||byId('date')?.value||isoToday();
+    const automatic=automaticBreadOpening(targetDate);
+    if(automatic){
+      setStartFieldState('idealStart',automatic.ideal,true,automatic.sourceDate);
+      setStartFieldState('gourmetStart',automatic.gourmet,true,automatic.sourceDate);
+      return automatic;
+    }
+
+    setStartFieldState('idealStart',byId('idealStart')?.value||'',false);
+    setStartFieldState('gourmetStart',byId('gourmetStart')?.value||'',false);
+    return null;
   }
 
   function updateBreadUi(){
@@ -33,8 +95,13 @@
     const selectedDate=byId('date')?.value||isoToday();
     const ym=selectedDate.slice(0,7);
     const prior=monthRecords(ym).map(normalize).filter(r=>String(r.date||'')<selectedDate);
+    const automatic=automaticBreadOpening(selectedDate);
 
     pairs.forEach((item,index)=>{
+      const startInput=byId(item.start);
+      const startLabel=startInput?.closest('.bread-cell')?.querySelector('span');
+      if(startLabel)startLabel.textContent=startInput?.dataset.autoBreadOpening==='1'?'Est. inicial (auto)':'Est. inicial';
+
       const finalInput=byId(item.finalInput);
       const finalLabel=finalInput?.closest('.bread-cell')?.querySelector('span');
       if(finalLabel)finalLabel.textContent='Est. final';
@@ -43,7 +110,7 @@
         finalInput.placeholder='Qtd';
       }
 
-      const startRaw=String(byId(item.start)?.value??'').trim();
+      const startRaw=String(startInput?.value??'').trim();
       const finalRaw=String(finalInput?.value??'').trim();
       const production=startRaw&&finalRaw?computedProduction(item.start,item.finalInput):0;
       const productionOutput=byId(item.productionOutput);
@@ -56,7 +123,21 @@
     });
 
     const note=panel?.querySelector('.bread-note');
-    if(note)note.textContent='Informe o estoque inicial e o estoque final. A produção é calculada automaticamente: estoque inicial − estoque final. O acumulado mensal soma as produções do mês.';
+    if(note){
+      note.textContent=automatic
+        ?`Estoque inicial automático: veio do estoque final de ${formatDate(automatic.sourceDate)}. Informe apenas o estoque final de hoje; a produção é estoque inicial − estoque final.`
+        :'Primeiro controle disponível: informe o estoque inicial e o estoque final. A partir do próximo fechamento, o estoque final restante será levado automaticamente como estoque inicial.';
+    }
+  }
+
+  if(typeof resetFormFields==='function'){
+    const previousResetFormFields=resetFormFields;
+    resetFormFields=function(date){
+      const result=previousResetFormFields.apply(this,arguments);
+      applyAutomaticBreadOpening(date||byId('date')?.value||isoToday());
+      calc();
+      return result;
+    };
   }
 
   if(typeof currentRecord==='function'){
@@ -65,9 +146,11 @@
       const record=previousCurrentRecord(dateOverride);
       if(!record)return record;
 
-      const idealStart=qty('idealStart');
+      const targetDate=record.date||dateOverride||byId('date')?.value||isoToday();
+      const automatic=automaticBreadOpening(targetDate);
+      const idealStart=automatic?automatic.ideal:qty('idealStart');
       const idealFinal=qty('idealProd');
-      const gourmetStart=qty('gourmetStart');
+      const gourmetStart=automatic?automatic.gourmet:qty('gourmetStart');
       const gourmetFinal=qty('gourmetProd');
 
       record.breads={
@@ -96,8 +179,19 @@
       const gourmetFinal=canonicalBreadFinal(normalized?.breads,'gourmet');
       if(byId('idealProd'))byId('idealProd').value=Number.isFinite(idealFinal)?String(idealFinal):'';
       if(byId('gourmetProd'))byId('gourmetProd').value=Number.isFinite(gourmetFinal)?String(gourmetFinal):'';
+      applyAutomaticBreadOpening(normalized?.date||byId('date')?.value||isoToday());
       calc();
       return result;
+    };
+  }
+
+  if(typeof loadBestRecordForDate==='function'){
+    const previousLoadBestRecordForDate=loadBestRecordForDate;
+    loadBestRecordForDate=function(date,options={}){
+      const status=previousLoadBestRecordForDate.apply(this,arguments);
+      applyAutomaticBreadOpening(date);
+      calc();
+      return status;
     };
   }
 
@@ -176,6 +270,12 @@
     const date=(typeof activeClosingDate!=='undefined'&&activeClosingDate)||byId('date')?.value;
     if(date&&typeof loadBestRecordForDate==='function'&&!formDirty)loadBestRecordForDate(date,{notify:false});
   }catch{}
+
+  window.XBBreadStock={
+    previousClosing:previousBreadClosing,
+    automaticOpening:automaticBreadOpening,
+    apply:applyAutomaticBreadOpening
+  };
 
   updateBreadUi();
 })();
