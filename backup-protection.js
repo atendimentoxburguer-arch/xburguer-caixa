@@ -7,6 +7,8 @@
   const REMINDER_KEY='xburguer_backup_reminder_date';
   const baseSbRest=typeof sbRest==='function'?sbRest:null;
   let latestExternalExport=null;
+  let externalVerificationState='unknown';
+  let snapshotVerificationState='unknown';
   let importVerification={status:'idle',message:'',verified:false,legacy:false};
   let statusPromise=null;
   let snapshotPromise=null;
@@ -28,10 +30,44 @@
     return d.toLocaleDateString('pt-BR');
   }
 
+  function parsedTime(value){
+    const time=value?new Date(value).getTime():NaN;
+    return Number.isFinite(time)?time:null;
+  }
+
   function ageInDays(value){
-    const d=value?new Date(value):null;
-    if(!d||Number.isNaN(d.getTime()))return Infinity;
-    return Math.max(0,Math.floor((Date.now()-d.getTime())/dayMs));
+    const time=parsedTime(value);
+    if(time===null)return Infinity;
+    return Math.max(0,Math.floor((Date.now()-time)/dayMs));
+  }
+
+  function isWithinDays(value,days){
+    const time=parsedTime(value);
+    if(time===null)return false;
+    return Math.max(0,Date.now()-time)<=Number(days||0)*dayMs;
+  }
+
+  function currentRecordCount(){
+    try{return Array.isArray(load?.())?load().length:0}catch{return 0}
+  }
+
+  function latestClosingSavedAt(){
+    try{
+      return (load?.()||[]).reduce((latest,record)=>{
+        const time=parsedTime(record?.savedAt);
+        return time!==null&&time>latest?time:latest;
+      },0);
+    }catch{return 0}
+  }
+
+  function snapshotIsOutdated(row){
+    if(!row?.snapshot_day)return true;
+    const currentCount=currentRecordCount();
+    if(Number(row.record_count||0)!==currentCount)return true;
+    const snapshotTime=parsedTime(row.created_at);
+    const latestClosing=latestClosingSavedAt();
+    if(snapshotTime!==null&&latestClosing&&latestClosing>snapshotTime+1000)return true;
+    return false;
   }
 
   async function sha256Hex(text){
@@ -126,20 +162,22 @@
     const last=byId('lastBackup');
     const hint=byId('backupExportHint');
     latestExternalExport=exportRow||null;
+    externalVerificationState='verified';
 
     if(!exportRow?.exported_at){
       const local=localStorage.getItem(BACKUP_KEY);
       if(last)last.textContent=local||'Nunca';
-      if(status)status.textContent='Atenção • nenhum backup verificado';
+      if(status){status.textContent='Atenção • nenhum backup verificado';status.dataset.state='warning';}
       if(hint)hint.textContent='Faça o primeiro backup externo e guarde o arquivo em outro local, como OneDrive ou Google Drive.';
       return;
     }
 
     const age=ageInDays(exportRow.exported_at);
+    const fresh=isWithinDays(exportRow.exported_at,MAX_AGE_DAYS);
     if(last)last.textContent=formatDateTime(exportRow.exported_at);
     if(status){
-      status.textContent=age<=MAX_AGE_DAYS?'Em dia':`Atenção • ${age} dias sem exportar`;
-      status.dataset.state=age<=MAX_AGE_DAYS?'ok':'warning';
+      status.textContent=fresh?'Em dia':`Atenção • ${age} dias sem exportar`;
+      status.dataset.state=fresh?'ok':'warning';
     }
     if(hint){
       const shortHash=String(exportRow.checksum||'').slice(0,12);
@@ -147,11 +185,37 @@
     }
   }
 
+  function setExternalUnavailable(){
+    const status=byId('backupExternalStatus');
+    const last=byId('lastBackup');
+    const hint=byId('backupExportHint');
+    externalVerificationState='unknown';
+    const local=localStorage.getItem(BACKUP_KEY);
+    if(last&&local)last.textContent=local;
+    if(status){status.textContent='Verificação online pendente';status.dataset.state='warning';}
+    if(hint)hint.textContent='Não foi possível confirmar o backup externo no banco agora. Tente novamente quando a conexão estiver estável.';
+  }
+
   function setSnapshotStatus(row){
     const el=byId('lastSnapshot');
+    snapshotVerificationState='verified';
     if(!el)return;
-    if(!row?.snapshot_day){el.textContent='Ainda não criado';return;}
-    el.textContent=`${formatDate(row.snapshot_day)} • ${Number(row.record_count||0)} fechamento(s)`;
+    if(!row?.snapshot_day){
+      el.textContent='Atenção • ainda não criado';
+      el.dataset.state='warning';
+      return;
+    }
+    const outdated=snapshotIsOutdated(row);
+    el.textContent=`${formatDate(row.snapshot_day)} • ${Number(row.record_count||0)} fechamento(s)${outdated?' • desatualizado':''}`;
+    el.dataset.state=outdated?'warning':'ok';
+  }
+
+  function setSnapshotUnavailable(){
+    const el=byId('lastSnapshot');
+    snapshotVerificationState='unknown';
+    if(!el)return;
+    el.textContent='Verificação online pendente';
+    el.dataset.state='warning';
   }
 
   async function refreshProtectionStatus(){
@@ -159,20 +223,22 @@
     if(statusPromise)return statusPromise;
     statusPromise=(async()=>{
       if(!baseSbRest||!authSession?.access_token||!navigator.onLine){
-        setExternalStatus(null);
-        setSnapshotStatus(null);
+        setExternalUnavailable();
+        setSnapshotUnavailable();
         return;
       }
-      try{
-        const [exportsRows,snapshotRows]=await Promise.all([
-          baseSbRest('backup_exports?select=exported_at,record_count,checksum,format_version&order=exported_at.desc&limit=1'),
-          baseSbRest('cash_backup_snapshots?select=snapshot_day,created_at,record_count&order=snapshot_day.desc&limit=1')
-        ]);
-        setExternalStatus(exportsRows?.[0]||null);
-        setSnapshotStatus(snapshotRows?.[0]||null);
-      }catch{
-        setExternalStatus(null);
-      }
+
+      const results=await Promise.allSettled([
+        baseSbRest('backup_exports?select=exported_at,record_count,checksum,format_version&order=exported_at.desc&limit=1'),
+        baseSbRest('cash_backup_snapshots?select=snapshot_day,created_at,record_count&order=snapshot_day.desc&limit=1')
+      ]);
+
+      const [exportsResult,snapshotResult]=results;
+      if(exportsResult.status==='fulfilled')setExternalStatus(exportsResult.value?.[0]||null);
+      else setExternalUnavailable();
+
+      if(snapshotResult.status==='fulfilled')setSnapshotStatus(snapshotResult.value?.[0]||null);
+      else setSnapshotUnavailable();
     })();
     try{await statusPromise}finally{statusPromise=null}
   }
@@ -310,8 +376,9 @@
 
   function maybeRemind(){
     if(!(typeof load==='function'&&load().length))return;
-    const age=latestExternalExport?.exported_at?ageInDays(latestExternalExport.exported_at):Infinity;
-    if(age<=MAX_AGE_DAYS)return;
+    if(externalVerificationState!=='verified')return;
+    const fresh=latestExternalExport?.exported_at?isWithinDays(latestExternalExport.exported_at,MAX_AGE_DAYS):false;
+    if(fresh)return;
     const today=typeof isoToday==='function'?isoToday():new Date().toISOString().slice(0,10);
     if(localStorage.getItem(REMINDER_KEY)===today)return;
     localStorage.setItem(REMINDER_KEY,today);
@@ -332,6 +399,8 @@
     format:FORMAT,
     verifyEnvelope,
     createSnapshot,
-    refreshStatus:refreshProtectionStatus
+    refreshStatus:refreshProtectionStatus,
+    snapshotIsOutdated,
+    status:()=>({external:externalVerificationState,snapshot:snapshotVerificationState})
   };
 })();
