@@ -29,6 +29,17 @@ async function confirmIfNeeded(page){
   if(await layer.isVisible())await page.locator('#confirmOkBtn').click();
 }
 
+async function saveFinancialClosingWithoutBread(page,{date,resp}){
+  await selectDate(page,date);
+  await page.locator('#resp').fill(resp);
+  await money(page,'cash',10);
+  await page.locator('#q0').fill('1');
+  await money(page,'v0',10);
+  await page.locator('#saveTopBtn').click();
+  await confirmIfNeeded(page);
+  await expect(page.locator('#toast')).toContainText('salvo',{timeout:5000});
+}
+
 async function saveBreadClosing(page,{date,resp,idealStart,gourmetStart,idealFinal,gourmetFinal}){
   await selectDate(page,date);
   await page.locator('#resp').fill(resp);
@@ -43,6 +54,34 @@ async function saveBreadClosing(page,{date,resp,idealStart,gourmetStart,idealFin
   await confirmIfNeeded(page);
   await expect(page.locator('#toast')).toContainText('salvo',{timeout:5000});
 }
+
+test('fechamentos antigos sem pães não travam o primeiro estoque real em zero',async({page})=>{
+  await openCleanApp(page);
+  await login(page);
+
+  await saveFinancialClosingWithoutBread(page,{date:'2026-08-30',resp:'Fechamento antigo sem pães'});
+  await saveFinancialClosingWithoutBread(page,{date:'2026-08-31',resp:'Outro fechamento antigo sem pães'});
+
+  await selectDate(page,'2026-09-01');
+  await expect(page.locator('#idealStart')).toHaveJSProperty('readOnly',false);
+  await expect(page.locator('#gourmetStart')).toHaveJSProperty('readOnly',false);
+  await expect(page.locator('#idealStart')).toHaveValue('');
+  await expect(page.locator('#gourmetStart')).toHaveValue('');
+  await expect(page.locator('.bread-note')).toContainText('Primeiro controle disponível');
+
+  const noHistory=await page.evaluate(()=>window.XBBreadStock.automaticOpening('2026-09-01'));
+  expect(noHistory).toBeNull();
+
+  await saveBreadClosing(page,{
+    date:'2026-09-01',resp:'Primeiro controle real',idealStart:100,gourmetStart:50,idealFinal:30,gourmetFinal:20
+  });
+
+  await selectDate(page,'2026-09-02');
+  await expect(page.locator('#idealStart')).toHaveValue('30');
+  await expect(page.locator('#gourmetStart')).toHaveValue('20');
+  await expect(page.locator('#idealStart')).toHaveJSProperty('readOnly',true);
+  await expect(page.locator('#gourmetStart')).toHaveJSProperty('readOnly',true);
+});
 
 test('estoque final de pães vira estoque inicial do próximo fechamento e continua em cadeia',async({page})=>{
   await openCleanApp(page);
