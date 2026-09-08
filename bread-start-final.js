@@ -17,13 +17,29 @@
     return integerStock(start-Number(breads?.[prefix+'Prod']||0));
   }
 
+  function hasMeaningfulBreadHistory(record){
+    const breads=record?.breads||{};
+    return [
+      'idealStart','idealFinal','idealProd',
+      'gourmetStart','gourmetFinal','gourmetProd'
+    ].some(key=>Math.abs(Number(breads[key]||0))>0);
+  }
+
   function previousBreadClosing(date){
     if(!date||typeof load!=='function')return null;
-    return load()
+    const prior=load()
       .map(normalize)
       .filter(r=>r?.date&&String(r.date)<String(date))
-      .sort((a,b)=>String(a.date).localeCompare(String(b.date)))
-      .at(-1)||null;
+      .sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.savedAt||'').localeCompare(String(b.savedAt||'')));
+
+    if(!prior.length)return null;
+
+    /* Fechamentos antigos sem uso real do controle de pães são normalizados como 0/0.
+       Eles não podem iniciar a cadeia automática nem bloquear o primeiro estoque manual.
+       Depois que existir qualquer histórico real de pães, os fechamentos seguintes —
+       inclusive dias com estoque 0 — continuam pertencendo à mesma cadeia. */
+    if(!prior.some(hasMeaningfulBreadHistory))return null;
+    return prior.at(-1)||null;
   }
 
   function automaticBreadOpening(date){
@@ -280,6 +296,7 @@
   window.XBBreadStock={
     previousClosing:previousBreadClosing,
     automaticOpening:automaticBreadOpening,
+    hasMeaningfulHistory:hasMeaningfulBreadHistory,
     apply:applyAutomaticBreadOpening
   };
 
