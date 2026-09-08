@@ -1,4 +1,4 @@
-// Revisão de assets: 2026-09-07 bread-rollover3
+// Revisão de assets: 2026-09-07 general-audit1
 const CACHE_NAME = "xburguer-caixa-native-v6-audit-4.18.3";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
@@ -117,6 +117,11 @@ self.addEventListener("fetch", event => {
       }
       return response;
     } catch (_) {
+      /* Primeiro tenta a URL exata (incluindo o cache-bust). Isso evita que uma
+         cópia antiga sem query seja escolhida antes da versão mais nova. */
+      const exact = await cache.match(request);
+      if (exact) return exact;
+
       const cached = await cache.match(request, { ignoreSearch: true });
       if (cached) return cached;
 
