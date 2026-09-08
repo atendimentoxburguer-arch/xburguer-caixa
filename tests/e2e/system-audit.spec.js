@@ -101,3 +101,66 @@ test('falha ao migrar rascunho legado preserva a cópia antiga',async({page})=>{
   expect(result.legacy.resp).toBe('Rascunho protegido');
   expect(result.target).toBeNull();
 });
+
+test('backup e snapshot têm verificação independente e snapshot atrasado é sinalizado',async({page})=>{
+  await openCleanApp(page);
+  await login(page);
+  await page.waitForTimeout(500);
+
+  const partial=await page.evaluate(async()=>{
+    const previousFetch=window.fetch;
+    const now=new Date().toISOString();
+    window.fetch=async(input,init)=>{
+      const url=typeof input==='string'?input:input?.url||'';
+      if(url.includes('/rest/v1/backup_exports?')){
+        return new Response(JSON.stringify([{
+          exported_at:now,
+          record_count:0,
+          checksum:'a'.repeat(64),
+          format_version:'xburguer-caixa-backup-v2'
+        }]),{status:200,headers:{'Content-Type':'application/json'}});
+      }
+      if(url.includes('/rest/v1/cash_backup_snapshots?'))throw new TypeError('snapshot temporariamente indisponível');
+      return previousFetch(input,init);
+    };
+    try{
+      await window.XBBackupProtection.refreshStatus();
+      return {
+        external:document.getElementById('backupExternalStatus')?.textContent,
+        snapshot:document.getElementById('lastSnapshot')?.textContent,
+        state:window.XBBackupProtection.status()
+      };
+    }finally{window.fetch=previousFetch}
+  });
+
+  expect(partial.external).toBe('Em dia');
+  expect(partial.snapshot).toBe('Verificação online pendente');
+  expect(partial.state).toEqual({external:'verified',snapshot:'unknown'});
+
+  const stale=await page.evaluate(async()=>{
+    await saveRecordCloud({
+      date:'2026-09-01',resp:'Snapshot teste',cash:10,deliveryCash:0,cardOut:0,onlinePayment:0,deliveryCard:0,
+      channels:[],expenses:[],breads:{},online:{},cashCountVerified:false
+    });
+    await loadCloudData();
+
+    const previousFetch=window.fetch;
+    const now=new Date().toISOString();
+    window.fetch=async(input,init)=>{
+      const url=typeof input==='string'?input:input?.url||'';
+      if(url.includes('/rest/v1/backup_exports?'))return new Response('[]',{status:200,headers:{'Content-Type':'application/json'}});
+      if(url.includes('/rest/v1/cash_backup_snapshots?')){
+        return new Response(JSON.stringify([{
+          snapshot_day:'2026-09-01',created_at:now,record_count:0
+        }]),{status:200,headers:{'Content-Type':'application/json'}});
+      }
+      return previousFetch(input,init);
+    };
+    try{
+      await window.XBBackupProtection.refreshStatus();
+      return document.getElementById('lastSnapshot')?.textContent||'';
+    }finally{window.fetch=previousFetch}
+  });
+
+  expect(stale).toContain('desatualizado');
+});
