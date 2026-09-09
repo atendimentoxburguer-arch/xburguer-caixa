@@ -23,6 +23,9 @@ jobs:
       - name: Instalar dependências de teste
         run: npm install --no-audit --no-fund
 
+      - name: Mostrar lockfile da auditoria
+        run: cat package-lock.json
+
       - name: Testar regras de negócio
         run: npm run test:unit
 
