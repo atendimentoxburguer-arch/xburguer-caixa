@@ -32,11 +32,25 @@ async function importJSON(){
       body:JSON.stringify({p_records:normalizedRecords})
     });
 
-    await loadCloudData();
-    if(!formDirty)loadBestRecordForDate(activeClosingDate||$('date').value||isoToday(),{notify:false});
-    refreshAll();
+    /* O RPC acima é atômico. Se ele retornou sucesso, os registros já foram
+       restaurados. Uma falha na releitura seguinte é somente uma pendência de
+       sincronização da tela e não pode ser anunciada como restauração desfeita. */
     $('importFile').value='';
-    toast(`Backup restaurado com sucesso: ${records.length} fechamento${records.length===1?'':'s'}.`);
+    const sync=typeof window.xbRefreshAfterConfirmedWrite==='function'
+      ? await window.xbRefreshAfterConfirmedWrite()
+      : await (async()=>{
+          try{await loadCloudData();return{refreshed:true,error:null}}
+          catch(error){return{refreshed:false,error}}
+        })();
+
+    if(sync.refreshed){
+      if(!formDirty)loadBestRecordForDate(activeClosingDate||$('date').value||isoToday(),{notify:false});
+      refreshAll();
+      toast(`Backup restaurado com sucesso: ${records.length} fechamento${records.length===1?'':'s'}.`);
+    }else{
+      setCloudStatus(navigator.onLine?'● Restaurado • sincronização pendente':'● Restaurado • sem internet',navigator.onLine?'syncing':'error');
+      toast(`Backup restaurado na nuvem: ${records.length} fechamento${records.length===1?'':'s'}. A atualização da tela ficou pendente e será retomada automaticamente.`,'error');
+    }
   }catch(err){
     setCloudStatus(navigator.onLine?'● Erro de sincronização':'● Sem internet','error');
     toast(err.message||'Não foi possível restaurar o backup. Nenhum dado do arquivo foi aplicado.','error');
