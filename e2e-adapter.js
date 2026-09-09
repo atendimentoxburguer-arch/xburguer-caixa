@@ -11,6 +11,7 @@
   const rules=window.XBBusinessRules;
   const originalFetch=window.fetch.bind(window);
   let nextSaveError=null;
+  let nextLoadError=null;
 
   window.fetch=async function(input,init){
     const raw=typeof input==='string'?input:input?.url||'';
@@ -71,6 +72,12 @@
   };
 
   loadCloudData=async function(){
+    if(nextLoadError){
+      const message=nextLoadError;
+      nextLoadError=null;
+      setCloudStatus('● Falha E2E de atualização','error');
+      throw new Error(message);
+    }
     cloudData=readRecords().map(record=>rules?.normalizeRecord?rules.normalizeRecord(record,{cashCountVerified:record.cashCountVerified}):record);
     lastSyncAt=new Date();
     setCloudStatus('● Banco de teste local','online');
@@ -124,9 +131,10 @@
 
   window.XBE2E={
     enabled:true,
-    reset(){localStorage.removeItem(DATA_KEY);clearStoredSessions();cloudData=[];nextSaveError=null},
+    reset(){localStorage.removeItem(DATA_KEY);clearStoredSessions();cloudData=[];nextSaveError=null;nextLoadError=null},
     records:readRecords,
-    failNextSave(message='Falha de salvamento E2E simulada.'){nextSaveError=String(message||'Falha de salvamento E2E simulada.')}
+    failNextSave(message='Falha de salvamento E2E simulada.'){nextSaveError=String(message||'Falha de salvamento E2E simulada.')},
+    failNextLoad(message='Falha de atualização E2E simulada.'){nextLoadError=String(message||'Falha de atualização E2E simulada.')}
   };
 
   setTimeout(()=>{
