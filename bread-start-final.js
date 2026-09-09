@@ -64,12 +64,12 @@
 
     if(automatic){
       input.value=String(integerStock(value));
-      input.readOnly=true;
+      input.readOnly=false;
       input.dataset.autoBreadOpening='1';
       input.dataset.breadSourceDate=sourceDate;
-      input.title='Automático: estoque final de '+formatDate(sourceDate);
-      input.setAttribute('aria-readonly','true');
-      if(label)label.textContent='Est. inicial (auto)';
+      input.title='Sugestão automática: estoque final de '+formatDate(sourceDate)+'. Edite se houve reabastecimento.';
+      input.removeAttribute('aria-readonly');
+      if(label)label.textContent='Est. inicial (sugerido)';
     }else{
       input.readOnly=false;
       delete input.dataset.autoBreadOpening;
@@ -116,7 +116,7 @@
     pairs.forEach((item,index)=>{
       const startInput=byId(item.start);
       const startLabel=startInput?.closest('.bread-cell')?.querySelector('span');
-      if(startLabel)startLabel.textContent=startInput?.dataset.autoBreadOpening==='1'?'Est. inicial (auto)':'Est. inicial';
+      if(startLabel)startLabel.textContent=startInput?.dataset.autoBreadOpening==='1'?'Est. inicial (sugerido)':'Est. inicial';
 
       const finalInput=byId(item.finalInput);
       const finalLabel=finalInput?.closest('.bread-cell')?.querySelector('span');
@@ -141,8 +141,8 @@
     const note=panel?.querySelector('.bread-note');
     if(note){
       note.textContent=automatic
-        ?`Estoque inicial automático: veio do estoque final de ${formatDate(automatic.sourceDate)}. Informe o estoque final de hoje para calcular a produção. Se não fizer a contagem neste fechamento, o estoque permanece igual e a produção fica 0.`
-        :'Primeiro controle disponível: informe o estoque inicial e o estoque final. A partir do próximo fechamento, o estoque final restante será levado automaticamente como estoque inicial.';
+        ?`Estoque inicial sugerido a partir do estoque final de ${formatDate(automatic.sourceDate)}. Se houve reabastecimento de pães, ajuste o estoque inicial para a quantidade disponível de verdade. Depois informe o estoque final de hoje para calcular a produção.`
+        :'Primeiro controle disponível: informe o estoque inicial e o estoque final. A partir do próximo fechamento, o estoque final restante será sugerido automaticamente como estoque inicial, mas continuará editável para reabastecimentos.';
     }
   }
 
@@ -164,8 +164,8 @@
 
       const targetDate=record.date||dateOverride||byId('date')?.value||isoToday();
       const automatic=automaticBreadOpening(targetDate);
-      const idealStart=automatic?automatic.ideal:qty('idealStart');
-      const gourmetStart=automatic?automatic.gourmet:qty('gourmetStart');
+      const idealStart=qty('idealStart');
+      const gourmetStart=qty('gourmetStart');
       const idealFinalRaw=String(byId('idealProd')?.value??'').trim();
       const gourmetFinalRaw=String(byId('gourmetProd')?.value??'').trim();
       const idealFinal=idealFinalRaw===''&&automatic?idealStart:qty('idealProd');
@@ -193,11 +193,23 @@
       const result=previousPopulateForm(rec,options);
       if(!result)return result;
 
+      const targetDate=normalized?.date||byId('date')?.value||isoToday();
+      const automatic=automaticBreadOpening(targetDate);
       const idealFinal=canonicalBreadFinal(normalized?.breads,'ideal');
       const gourmetFinal=canonicalBreadFinal(normalized?.breads,'gourmet');
       if(byId('idealProd'))byId('idealProd').value=Number.isFinite(idealFinal)?String(idealFinal):'';
       if(byId('gourmetProd'))byId('gourmetProd').value=Number.isFinite(gourmetFinal)?String(gourmetFinal):'';
-      applyAutomaticBreadOpening(normalized?.date||byId('date')?.value||isoToday());
+
+      if(automatic){
+        const idealStored=normalized?.breads?.idealStart;
+        const gourmetStored=normalized?.breads?.gourmetStart;
+        setStartFieldState('idealStart',idealStored??automatic.ideal,true,automatic.sourceDate);
+        setStartFieldState('gourmetStart',gourmetStored??automatic.gourmet,true,automatic.sourceDate);
+      }else{
+        setStartFieldState('idealStart',byId('idealStart')?.value||'',false);
+        setStartFieldState('gourmetStart',byId('gourmetStart')?.value||'',false);
+      }
+
       calc();
       return result;
     };
@@ -207,7 +219,7 @@
     const previousLoadBestRecordForDate=loadBestRecordForDate;
     loadBestRecordForDate=function(date,options={}){
       const status=previousLoadBestRecordForDate.apply(this,arguments);
-      applyAutomaticBreadOpening(date);
+      if(status==='empty')applyAutomaticBreadOpening(date);
       calc();
       return status;
     };
