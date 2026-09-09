@@ -79,11 +79,11 @@ test('fechamentos antigos sem pães não travam o primeiro estoque real em zero'
   await selectDate(page,'2026-09-02');
   await expect(page.locator('#idealStart')).toHaveValue('30');
   await expect(page.locator('#gourmetStart')).toHaveValue('20');
-  await expect(page.locator('#idealStart')).toHaveJSProperty('readOnly',true);
-  await expect(page.locator('#gourmetStart')).toHaveJSProperty('readOnly',true);
+  await expect(page.locator('#idealStart')).toHaveJSProperty('readOnly',false);
+  await expect(page.locator('#gourmetStart')).toHaveJSProperty('readOnly',false);
 });
 
-test('estoque final de pães vira estoque inicial do próximo fechamento e continua em cadeia',async({page})=>{
+test('saldo anterior é sugerido, pode receber reabastecimento e o saldo final continua a cadeia',async({page})=>{
   await openCleanApp(page);
   await login(page);
 
@@ -98,36 +98,44 @@ test('estoque final de pães vira estoque inicial do próximo fechamento e conti
   await selectDate(page,'2026-09-02');
   await expect(page.locator('#idealStart')).toHaveValue('30');
   await expect(page.locator('#gourmetStart')).toHaveValue('20');
-  await expect(page.locator('#idealStart')).toHaveJSProperty('readOnly',true);
-  await expect(page.locator('#gourmetStart')).toHaveJSProperty('readOnly',true);
+  await expect(page.locator('#idealStart')).toHaveJSProperty('readOnly',false);
+  await expect(page.locator('#gourmetStart')).toHaveJSProperty('readOnly',false);
   await expect(page.locator('.bread-note')).toContainText('estoque final de 01/09/2026');
+  await expect(page.locator('.bread-note')).toContainText('reabastecimento');
 
-  const protectedRecord=await page.evaluate(()=>{
-    document.getElementById('idealStart').value='999';
-    document.getElementById('gourmetStart').value='999';
-    return currentRecord('2026-09-02').breads;
-  });
-  expect(protectedRecord.idealStart).toBe(30);
-  expect(protectedRecord.gourmetStart).toBe(20);
-  await page.evaluate(()=>window.XBBreadStock.apply('2026-09-02'));
+  await page.locator('#idealStart').fill('100');
+  await page.locator('#gourmetStart').fill('60');
+  const replenishedRecord=await page.evaluate(()=>currentRecord('2026-09-02').breads);
+  expect(replenishedRecord.idealStart).toBe(100);
+  expect(replenishedRecord.gourmetStart).toBe(60);
 
   await saveBreadClosing(page,{
-    date:'2026-09-02',resp:'Pães dia 02',idealFinal:25,gourmetFinal:15
+    date:'2026-09-02',resp:'Pães dia 02 com reabastecimento',idealStart:100,gourmetStart:60,idealFinal:25,gourmetFinal:15
   });
+
+  await selectDate(page,'2026-09-02');
+  await expect(page.locator('#idealStart')).toHaveValue('100');
+  await expect(page.locator('#gourmetStart')).toHaveValue('60');
+  await expect(page.locator('#idealProd')).toHaveValue('25');
+  await expect(page.locator('#gourmetProd')).toHaveValue('15');
+  await expect(page.locator('#idealStart')).toHaveJSProperty('readOnly',false);
+  await expect(page.locator('#gourmetStart')).toHaveJSProperty('readOnly',false);
 
   await selectDate(page,'2026-09-05');
   await expect(page.locator('#idealStart')).toHaveValue('25');
   await expect(page.locator('#gourmetStart')).toHaveValue('15');
+  await expect(page.locator('#idealStart')).toHaveJSProperty('readOnly',false);
+  await expect(page.locator('#gourmetStart')).toHaveJSProperty('readOnly',false);
   await expect(page.locator('.bread-note')).toContainText('02/09/2026');
 
   await saveBreadClosing(page,{
-    date:'2026-09-05',resp:'Pães dia 05',idealFinal:18,gourmetFinal:9
+    date:'2026-09-05',resp:'Pães dia 05',idealStart:25,gourmetStart:15,idealFinal:18,gourmetFinal:9
   });
 
   await selectDate(page,'2026-10-01');
   await expect(page.locator('#idealStart')).toHaveValue('18');
   await expect(page.locator('#gourmetStart')).toHaveValue('9');
-  await expect(page.locator('#idealStart')).toHaveJSProperty('readOnly',true);
-  await expect(page.locator('#gourmetStart')).toHaveJSProperty('readOnly',true);
+  await expect(page.locator('#idealStart')).toHaveJSProperty('readOnly',false);
+  await expect(page.locator('#gourmetStart')).toHaveJSProperty('readOnly',false);
   await expect(page.locator('.bread-note')).toContainText('05/09/2026');
 });
