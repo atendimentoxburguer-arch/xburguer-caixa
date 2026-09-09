@@ -13,7 +13,7 @@ jobs:
   seguranca:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Validar sintaxe dos módulos de segurança
         run: |
@@ -42,6 +42,7 @@ jobs:
           security=read('security-hardening.js')
           e2e_security=read('e2e-security-adapter.js')
           app3=read('app3.js')
+          app5=read('app5.js')
 
           for name,text in [('caixa.html',caixa),('index.html',index)]:
               need('Content-Security-Policy' in text,f'{name}: CSP ausente.')
@@ -49,6 +50,8 @@ jobs:
               need("base-uri 'none'" in text,f'{name}: base-uri precisa permanecer bloqueado.')
               need('name="referrer" content="no-referrer"' in text,f'{name}: política de referrer ausente.')
 
+          need("script-src-attr 'none'" in caixa,'caixa.html: handlers JavaScript inline precisam permanecer bloqueados pela CSP.')
+          need(not re.search(r'\son(?:click|change|input|submit|load|error|focus|blur|keydown|keyup|keypress)\s*=',caixa,re.I),'caixa.html contém handler JavaScript inline incompatível com a CSP endurecida.')
           need('https://trnngxezppeembrvxkhh.supabase.co' in caixa,'CSP não libera o Supabase oficial.')
           need('wss://trnngxezppeembrvxkhh.supabase.co' in caixa,'CSP não libera o Realtime oficial.')
           need('@supabase/supabase-js@2.112.3' in caixa,'Supabase JS precisa permanecer fixado na versão auditada.')
@@ -59,7 +62,11 @@ jobs:
           need('frame-guard.js?v=4.18.3-security1' in caixa,'frame-guard.js não está carregado na revisão atual.')
           need(caixa.find('frame-guard.js')<caixa.find('shell1.js'),'Proteção anti-clickjacking precisa carregar antes da interface.')
           need("sbRest('rpc/delete_cash_closing'" in app3 and "sbRest('rpc/delete_cash_closing'" in security,'Exclusão protegida precisa existir no fluxo-base e na camada de segurança.')
-          need('security-hardening.js?v=4.18.3-security1' in caixa,'Módulo de segurança não está carregado na revisão atual.')
+          need('postWriteRefreshResilient:true' in security,'Camada de segurança perdeu a proteção contra falso erro após escrita confirmada.')
+          need('xbRefreshAfterConfirmedWrite' in app5,'Restauração de backup não distingue escrita confirmada de falha posterior de sincronização.')
+          need('security-hardening.js?v=4.18.3-security2' in caixa,'Módulo de segurança não está carregado na revisão atual.')
+          need('e2e-adapter.js?v=4.18.3-test2' in caixa,'Adaptador E2E não está carregado na revisão atual.')
+          need('app5.js?v=4.18.3-audit3' in caixa,'app5.js não está carregado na revisão atual.')
           need(caixa.find('security-hardening.js')<caixa.find('e2e-adapter.js')<caixa.find('e2e-security-adapter.js')<caixa.find('app5.js'),'Ordem dos módulos de segurança/E2E está incorreta.')
           need('rpc/delete_cash_closing' in e2e_security,'Ambiente E2E não cobre o RPC de exclusão.')
 
@@ -76,5 +83,5 @@ jobs:
           if errors:
               print('\n'.join('ERRO: '+e for e in errors))
               sys.exit(1)
-          print('OK: CSP, anti-clickjacking, dependência fixada, ausência de segredos e exclusão protegida validadas.')
+          print('OK: CSP sem handlers inline, anti-clickjacking, dependência fixada, ausência de segredos e operações críticas resilientes validadas.')
           PY

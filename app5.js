@@ -4,12 +4,15 @@ async function importJSON(){
   const file=$('importFile').files[0];
   if(!file)return toast('Selecione um arquivo JSON.','error');
 
+  let restoreConfirmed=false;
+  let restoredCount=0;
   try{
     const raw=JSON.parse(await file.text());
     const records=Array.isArray(raw)?raw:raw.records;
     const backupValid=validateBackupRecords(records);
     if(backupValid!==true)throw new Error(backupValid);
     if(!records.length)return toast('O backup não possui fechamentos para restaurar.','error');
+    restoredCount=records.length;
 
     const importOk=await openConfirmModal({
       title:'Importar backup',
@@ -31,15 +34,35 @@ async function importJSON(){
       headers:{'Prefer':'return=representation'},
       body:JSON.stringify({p_records:normalizedRecords})
     });
+    restoreConfirmed=true;
 
-    await loadCloudData();
-    if(!formDirty)loadBestRecordForDate(activeClosingDate||$('date').value||isoToday(),{notify:false});
-    refreshAll();
+    /* O RPC acima é atômico. Se ele retornou sucesso, os registros já foram
+       restaurados. Uma falha na releitura seguinte é somente uma pendência de
+       sincronização da tela e não pode ser anunciada como restauração desfeita. */
     $('importFile').value='';
-    toast(`Backup restaurado com sucesso: ${records.length} fechamento${records.length===1?'':'s'}.`);
+    const sync=typeof window.xbRefreshAfterConfirmedWrite==='function'
+      ? await window.xbRefreshAfterConfirmedWrite()
+      : await (async()=>{
+          try{await loadCloudData();return{refreshed:true,error:null}}
+          catch(error){return{refreshed:false,error}}
+        })();
+
+    if(sync.refreshed){
+      if(!formDirty)loadBestRecordForDate(activeClosingDate||$('date').value||isoToday(),{notify:false});
+      refreshAll();
+      toast(`Backup restaurado com sucesso: ${records.length} fechamento${records.length===1?'':'s'}.`);
+    }else{
+      setCloudStatus(navigator.onLine?'● Restaurado • sincronização pendente':'● Restaurado • sem internet',navigator.onLine?'syncing':'error');
+      toast(`Backup restaurado na nuvem: ${records.length} fechamento${records.length===1?'':'s'}. A atualização da tela ficou pendente e será retomada automaticamente.`,'error');
+    }
   }catch(err){
-    setCloudStatus(navigator.onLine?'● Erro de sincronização':'● Sem internet','error');
-    toast(err.message||'Não foi possível restaurar o backup. Nenhum dado do arquivo foi aplicado.','error');
+    if(restoreConfirmed){
+      setCloudStatus(navigator.onLine?'● Restaurado • sincronização pendente':'● Restaurado • sem internet',navigator.onLine?'syncing':'error');
+      toast(`Backup restaurado na nuvem: ${restoredCount} fechamento${restoredCount===1?'':'s'}. Ocorreu apenas uma falha ao atualizar a interface; a sincronização será retomada automaticamente.`,'error');
+    }else{
+      setCloudStatus(navigator.onLine?'● Erro de sincronização':'● Sem internet','error');
+      toast(err.message||'Não foi possível restaurar o backup. Nenhum dado do arquivo foi aplicado.','error');
+    }
   }finally{
     importInProgress=false;
     $('importBtn').disabled=false;

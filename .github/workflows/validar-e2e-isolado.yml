@@ -13,7 +13,7 @@ jobs:
   isolamento-e2e:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Garantir que testes nunca ativem em produção
         run: |
@@ -37,7 +37,7 @@ jobs:
           need('if(!enabled)return;' in adapter,'Adaptador E2E não interrompe execução quando desativado.')
           need("url.hostname==='trnngxezppeembrvxkhh.supabase.co'" in adapter,'Adaptador E2E deixou de interceptar o Supabase oficial em testes locais.')
           need('window.__XB_E2E__=true' in adapter and 'window.XBE2E=' in adapter,'Sinalização explícita do ambiente E2E foi removida.')
-          need('failNextSave' in adapter,'Simulação controlada de falha de salvamento foi removida.')
+          need('failNextSave' in adapter and 'failNextLoad' in adapter,'Simulações controladas de falha do E2E foram removidas.')
           need("const realtimeDisabled=()=>window.__XB_E2E__===true" in realtime,'Realtime não reconhece explicitamente o ambiente E2E.')
           need('if(realtimeDisabled())return false' in realtime,'startRealtimeSync pode abrir conexão no ambiente E2E.')
           need('if(realtimeDisabled()||realtimeReconnectTimer' in realtime,'Reconexão do Realtime pode escapar para produção durante E2E.')
