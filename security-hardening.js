@@ -46,10 +46,12 @@
 
       saveInProgress=true;
       setClosingFormBusy(true);
+      let saveConfirmed=false;
       try{
         setCloudStatus('● Salvando...','syncing');
         setDraftBadge('Salvando na nuvem...','syncing');
         await saveRecordCloud(rec);
+        saveConfirmed=true;
 
         /* O RPC já confirmou a persistência. A partir daqui, o rascunho não pode
            continuar marcado como não salvo apenas porque uma nova leitura falhou. */
@@ -67,11 +69,19 @@
           toast('Fechamento salvo na nuvem. A atualização da tela ficou pendente e será retomada automaticamente.','error');
         }
       }catch(err){
-        formDirty=true;
-        saveDraft(rec.date,{silent:true});
-        setDraftBadge('Falha ao salvar • rascunho local preservado','error');
-        setCloudStatus(navigator.onLine?'● Erro de sincronização':'● Sem internet','error');
-        toast(err?.message||'Não foi possível salvar no banco. Seus dados ficaram preservados neste computador.','error');
+        if(saveConfirmed){
+          removeDraft(rec.date);
+          formDirty=false;
+          setDraftBadge('Fechamento salvo • atualização pendente','saved');
+          setCloudStatus(navigator.onLine?'● Salvo • sincronização pendente':'● Salvo • sem internet',navigator.onLine?'syncing':'error');
+          toast('Fechamento salvo na nuvem. Ocorreu apenas uma falha ao atualizar a interface; a sincronização será retomada automaticamente.','error');
+        }else{
+          formDirty=true;
+          saveDraft(rec.date,{silent:true});
+          setDraftBadge('Falha ao salvar • rascunho local preservado','error');
+          setCloudStatus(navigator.onLine?'● Erro de sincronização':'● Sem internet','error');
+          toast(err?.message||'Não foi possível salvar no banco. Seus dados ficaram preservados neste computador.','error');
+        }
       }finally{
         saveInProgress=false;
         setClosingFormBusy(false);
@@ -95,6 +105,7 @@
       if(!ok)return;
 
       deleteInProgress=true;
+      let deleteConfirmed=false;
       try{
         setCloudStatus('● Excluindo...','syncing');
         await sbRest('rpc/delete_cash_closing',{
@@ -102,6 +113,7 @@
           headers:{'Prefer':'return=representation'},
           body:JSON.stringify({p_id:record._id})
         });
+        deleteConfirmed=true;
 
         /* A exclusão já foi confirmada pelo RPC. Reflete isso localmente antes da
            releitura para que uma queda de rede posterior não mostre o registro como ativo. */
@@ -122,8 +134,16 @@
           toast('Fechamento excluído na nuvem. A atualização completa da tela ficou pendente e será retomada automaticamente.','error');
         }
       }catch(err){
-        setCloudStatus(navigator.onLine?'● Erro de sincronização':'● Sem internet','error');
-        toast(err?.message||'Não foi possível excluir este fechamento.','error');
+        if(deleteConfirmed){
+          cloudData=(load()||[]).filter(item=>item._id!==record._id);
+          removeDraft(date);
+          try{refreshAll()}catch{}
+          setCloudStatus(navigator.onLine?'● Excluído • sincronização pendente':'● Excluído • sem internet',navigator.onLine?'syncing':'error');
+          toast('Fechamento excluído na nuvem. Ocorreu apenas uma falha ao atualizar a interface; a sincronização será retomada automaticamente.','error');
+        }else{
+          setCloudStatus(navigator.onLine?'● Erro de sincronização':'● Sem internet','error');
+          toast(err?.message||'Não foi possível excluir este fechamento.','error');
+        }
       }finally{
         deleteInProgress=false;
       }
