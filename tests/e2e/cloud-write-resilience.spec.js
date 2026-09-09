@@ -66,6 +66,9 @@ test('exclusão confirmada continua excluída quando apenas a releitura cai',asy
   await saveSimpleClosing(page,date,28);
 
   await page.locator('[data-page="historico"]').click();
+  await page.locator('#historyMonth').fill('2026-08');
+  await page.locator('#historyMonth').dispatchEvent('change');
+  await expect(page.locator('#historyTable [data-delete-date]')).toBeVisible();
   await page.evaluate(()=>window.XBE2E.failNextLoad('Falha E2E depois da exclusão.'));
   await page.locator('#historyTable [data-delete-date]').click();
   await expect(page.locator('#confirmLayer')).not.toHaveAttribute('hidden','');
