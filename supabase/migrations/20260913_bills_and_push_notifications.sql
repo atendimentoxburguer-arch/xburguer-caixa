@@ -66,21 +66,6 @@ create table if not exists private.bill_push_config (
 );
 revoke all on private.bill_push_config from public, anon, authenticated;
 
-create or replace function public.xb_is_active_cash_user()
-returns boolean
-language sql
-stable
-security definer
-set search_path = public, auth
-as $$
-  select exists(
-    select 1 from public.profiles p
-    where p.id = auth.uid() and coalesce(p.active,true) = true
-  );
-$$;
-revoke all on function public.xb_is_active_cash_user() from public;
-grant execute on function public.xb_is_active_cash_user() to authenticated, service_role;
-
 create or replace function public.xb_bills_touch_updated_at()
 returns trigger
 language plpgsql
@@ -114,25 +99,6 @@ create or replace trigger bill_push_touch_updated_at
 before update on public.bill_push_subscriptions
 for each row execute function public.xb_bill_push_touch_updated_at();
 
-create or replace function public.xb_bills_reset_reopened_notifications()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if new.status='pending' and old.status is distinct from 'pending' then
-    delete from public.bill_notification_log
-    where bill_id=new.id and due_date=new.due_date;
-  end if;
-  return new;
-end;
-$$;
-
-create or replace trigger bills_reset_reopened_notifications
-after update of status on public.bills
-for each row execute function public.xb_bills_reset_reopened_notifications();
-
 alter table public.bills enable row level security;
 alter table public.bills force row level security;
 alter table public.bill_push_subscriptions enable row level security;
@@ -142,29 +108,33 @@ alter table public.bill_notification_log force row level security;
 
 drop policy if exists bills_select_active on public.bills;
 create policy bills_select_active on public.bills for select to authenticated
-using (public.xb_is_active_cash_user());
+using ((select private.is_active_user()));
 
 drop policy if exists bills_insert_active on public.bills;
 create policy bills_insert_active on public.bills for insert to authenticated
-with check (public.xb_is_active_cash_user() and coalesce(created_by,auth.uid())=auth.uid());
+with check ((select private.is_active_user()) and coalesce(created_by,(select auth.uid()))=(select auth.uid()));
 
 drop policy if exists bills_update_active on public.bills;
 create policy bills_update_active on public.bills for update to authenticated
-using (public.xb_is_active_cash_user())
-with check (public.xb_is_active_cash_user());
+using ((select private.is_active_user()))
+with check ((select private.is_active_user()));
 
 drop policy if exists bill_push_select_own on public.bill_push_subscriptions;
 create policy bill_push_select_own on public.bill_push_subscriptions for select to authenticated
-using (public.xb_is_active_cash_user() and user_id=auth.uid());
+using ((select private.is_active_user()) and user_id=(select auth.uid()));
 
 drop policy if exists bill_push_insert_own on public.bill_push_subscriptions;
 create policy bill_push_insert_own on public.bill_push_subscriptions for insert to authenticated
-with check (public.xb_is_active_cash_user() and user_id=auth.uid());
+with check ((select private.is_active_user()) and user_id=(select auth.uid()));
 
 drop policy if exists bill_push_update_own on public.bill_push_subscriptions;
 create policy bill_push_update_own on public.bill_push_subscriptions for update to authenticated
-using (public.xb_is_active_cash_user() and user_id=auth.uid())
-with check (public.xb_is_active_cash_user() and user_id=auth.uid());
+using ((select private.is_active_user()) and user_id=(select auth.uid()))
+with check ((select private.is_active_user()) and user_id=(select auth.uid()));
+
+drop policy if exists bill_notification_log_deny_authenticated on public.bill_notification_log;
+create policy bill_notification_log_deny_authenticated on public.bill_notification_log
+for all to authenticated using (false) with check (false);
 
 revoke all on public.bills from anon;
 revoke all on public.bill_push_subscriptions from anon;
@@ -280,3 +250,27 @@ end;
 $$;
 revoke all on function public.record_bill_notification(uuid,uuid,date,integer) from public, anon, authenticated;
 grant execute on function public.record_bill_notification(uuid,uuid,date,integer) to service_role;
+
+create or replace function private.xb_bills_reset_reopened_notifications()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+begin
+  if new.status='pending' and old.status is distinct from 'pending' then
+    delete from public.bill_notification_log
+    where bill_id=new.id and due_date=new.due_date;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function private.xb_bills_reset_reopened_notifications() from public, anon, authenticated;
+
+create or replace trigger bills_reset_reopened_notifications
+after update of status on public.bills
+for each row execute function private.xb_bills_reset_reopened_notifications();
+
+create index if not exists bill_notification_log_subscription_idx
+on public.bill_notification_log(subscription_id);
