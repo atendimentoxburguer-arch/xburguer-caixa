@@ -1,5 +1,6 @@
 /* X-Burguer Caixa — Boletos e contas a pagar v1 */
 .bills-nav-badge{margin-left:auto!important;min-width:22px;height:22px;padding:0 7px;border-radius:999px;display:grid!important;place-items:center;background:var(--sand);color:var(--ink);font-size:10px!important;font-weight:900;opacity:1!important}
+.bills-nav-badge[hidden]{display:none!important}
 .nav button.active .bills-nav-badge{background:var(--ink);color:#fff}
 .bills-cards{margin-bottom:15px}
 .bills-card-alert .num{color:var(--danger)}
