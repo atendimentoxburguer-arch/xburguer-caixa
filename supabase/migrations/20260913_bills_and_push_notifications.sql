@@ -94,13 +94,44 @@ begin
 end;
 $$;
 
+create or replace function public.xb_bill_push_touch_updated_at()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
 create or replace trigger bills_touch_updated_at
 before update on public.bills
 for each row execute function public.xb_bills_touch_updated_at();
 
 create or replace trigger bill_push_touch_updated_at
 before update on public.bill_push_subscriptions
-for each row execute function public.xb_bills_touch_updated_at();
+for each row execute function public.xb_bill_push_touch_updated_at();
+
+create or replace function public.xb_bills_reset_reopened_notifications()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.status='pending' and old.status is distinct from 'pending' then
+    delete from public.bill_notification_log
+    where bill_id=new.id and due_date=new.due_date;
+  end if;
+  return new;
+end;
+$$;
+
+create or replace trigger bills_reset_reopened_notifications
+after update of status on public.bills
+for each row execute function public.xb_bills_reset_reopened_notifications();
 
 alter table public.bills enable row level security;
 alter table public.bills force row level security;
