@@ -1,5 +1,5 @@
-// Revisão de assets: 2026-09-07 general-audit2
-const CACHE_NAME = "xburguer-caixa-native-v6-audit-4.18.3";
+// Revisão de assets: 2026-09-13 bills-push1
+const CACHE_NAME = "xburguer-caixa-native-v7-bills-4.18.3";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
   "./",
@@ -28,6 +28,7 @@ const PRECACHE = [
   "./online-orders-equal.css",
   "./history-table-actions.css",
   "./login-modern.css",
+  "./bills.css",
 
   "./frame-guard.js",
   "./shell1.js",
@@ -68,6 +69,8 @@ const PRECACHE = [
   "./e2e-adapter.js",
   "./e2e-security-adapter.js",
   "./app5.js",
+  "./bills-logic.js",
+  "./bills.js",
   "./login-hardening.js",
   "./system-guard.js",
   "./realtime.js",
@@ -98,6 +101,51 @@ self.addEventListener("activate", event => {
       ))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener("push", event => {
+  let payload = {};
+  try { payload = event.data ? event.data.json() : {}; }
+  catch (_) {
+    try { payload = { body: event.data ? event.data.text() : "" }; }
+    catch (_) { payload = {}; }
+  }
+
+  const title = payload.title || "X-Burguer Caixa";
+  const billId = payload.billId || payload.bill_id || "";
+  const reminderDays = payload.reminderDays ?? payload.reminder_days ?? "";
+  const target = `./caixa.html?open=bills${billId ? `&bill=${encodeURIComponent(billId)}` : ""}`;
+
+  event.waitUntil(self.registration.showNotification(title, {
+    body: payload.body || "Há um boleto que precisa da sua atenção.",
+    icon: "./icons/xburguer-caixa-rounded-192-v3.png",
+    badge: "./icons/xburguer-caixa-rounded-48-v3.png",
+    tag: `xburguer-bill-${billId || "reminder"}-${reminderDays}`,
+    renotify: true,
+    requireInteraction: reminderDays === 0,
+    data: { billId, url: target }
+  }));
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  const billId = event.notification.data?.billId || "";
+  const target = new URL(event.notification.data?.url || "./caixa.html?open=bills", self.registration.scope).href;
+
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of windows) {
+      try {
+        const url = new URL(client.url);
+        if (url.origin === self.location.origin && url.pathname.startsWith(APP_PATH)) {
+          await client.focus();
+          client.postMessage({ type: "XB_OPEN_BILLS", billId });
+          return;
+        }
+      } catch (_) {}
+    }
+    if (self.clients.openWindow) await self.clients.openWindow(target);
+  })());
 });
 
 self.addEventListener("fetch", event => {
