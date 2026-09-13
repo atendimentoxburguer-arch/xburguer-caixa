@@ -1,0 +1,40 @@
+/* X-Burguer Caixa — Boletos e contas a pagar v1 */
+.bills-nav-badge{margin-left:auto!important;min-width:22px;height:22px;padding:0 7px;border-radius:999px;display:grid!important;place-items:center;background:var(--sand);color:var(--ink);font-size:10px!important;font-weight:900;opacity:1!important}
+.bills-nav-badge[hidden]{display:none!important}
+.nav button.active .bills-nav-badge{background:var(--ink);color:#fff}
+.bills-cards{margin-bottom:15px}
+.bills-card-alert .num{color:var(--danger)}
+.bills-card-today .num{color:var(--danger)}
+.bills-device-panel{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center}
+.bills-device-copy{min-width:0}
+.bills-device-copy h3{margin:0 0 5px;font-size:15px}
+.bills-device-copy p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
+.bills-device-status{display:inline-flex;align-items:center;gap:7px;margin-top:10px;padding:7px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);font-size:10px;font-weight:900}
+.bills-device-status[data-state="enabled"]{background:rgba(163,196,194,.34);border-color:rgba(100,130,133,.28);color:var(--ink)}
+.bills-device-status[data-state="error"]{background:rgba(243,218,170,.48);border-color:var(--taupe);color:var(--ink)}
+.bills-form{display:grid;grid-template-columns:minmax(180px,1.1fr) minmax(180px,1.4fr) minmax(140px,.7fr) minmax(150px,.8fr);gap:12px}
+.bills-form .wide{grid-column:span 2}
+.bills-form textarea{min-height:84px}
+.bills-form-actions{display:flex;justify-content:flex-end;gap:9px;grid-column:1/-1;padding-top:2px}
+.bills-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px;flex-wrap:wrap}
+.bills-filters{display:flex;gap:7px;flex-wrap:wrap}
+.bill-filter{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:7px 11px;font-size:10px;font-weight:900}
+.bill-filter.active{background:var(--ink);border-color:var(--ink);color:#fff}
+.bills-list{display:grid;gap:10px}
+.bill-item{display:grid;grid-template-columns:minmax(190px,1.35fr) minmax(115px,.65fr) minmax(120px,.7fr) auto;gap:14px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.bill-main{min-width:0}.bill-main b{display:block;font-size:13px;line-height:1.3}.bill-main small{display:block;margin-top:4px;color:var(--muted);font-size:10px;line-height:1.4;overflow-wrap:anywhere}
+.bill-value b{display:block;font-size:14px}.bill-value small,.bill-due small{display:block;margin-top:4px;color:var(--muted);font-size:10px}
+.bill-state{display:inline-flex;align-items:center;border-radius:999px;padding:6px 9px;font-size:9px;font-weight:900;white-space:nowrap;background:var(--surface-2);border:1px solid var(--line)}
+.bill-state[data-tone="danger"]{background:rgba(128,109,97,.14);border-color:rgba(128,109,97,.34);color:#654f44}
+.bill-state[data-tone="warning"]{background:rgba(243,218,170,.45);border-color:rgba(180,166,142,.44);color:#5d513d}
+.bill-state[data-tone="paid"]{background:rgba(163,196,194,.34);border-color:rgba(100,130,133,.28);color:#334f51}
+.bill-state[data-tone="muted"]{opacity:.7}
+.bill-actions{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+.bill-actions button{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:7px 9px;font-size:9px;font-weight:900;color:var(--ink)}
+.bill-actions button:hover{border-color:var(--primary);background:var(--surface-2)}
+.bill-actions .primary{background:var(--ink);border-color:var(--ink);color:#fff}.bill-actions .danger{color:var(--danger)}
+.bills-empty{padding:34px 18px;text-align:center;border:1px dashed var(--line-strong);border-radius:14px;color:var(--muted);font-size:11px;background:var(--surface-2)}
+.bills-sync-note{font-size:10px;color:var(--muted)}
+.bill-edit-banner{display:none;margin:0 0 12px;padding:9px 11px;border-radius:11px;background:rgba(243,218,170,.45);border:1px solid rgba(180,166,142,.42);font-size:10px;font-weight:800}.bill-edit-banner.show{display:block}
+@media(max-width:980px){.bills-form{grid-template-columns:repeat(2,minmax(0,1fr))}.bill-item{grid-template-columns:minmax(0,1fr) minmax(120px,.55fr)}.bill-actions{grid-column:1/-1;justify-content:flex-start}}
+@media(max-width:640px){.bills-device-panel{grid-template-columns:1fr}.bills-device-panel .btn{width:100%}.bills-form{grid-template-columns:1fr}.bills-form .wide{grid-column:auto}.bills-form-actions{flex-direction:column}.bills-form-actions .btn{width:100%}.bill-item{grid-template-columns:1fr}.bill-actions{grid-column:auto}.bill-value,.bill-due{display:flex;align-items:center;justify-content:space-between;gap:10px}.bills-toolbar{align-items:flex-start;flex-direction:column}}
