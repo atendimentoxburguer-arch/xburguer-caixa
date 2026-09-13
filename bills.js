@@ -5,7 +5,7 @@
   const logic=window.XBBillLogic;
   if(!logic){console.error('X-Burguer Caixa: bills-logic.js não foi carregado.');return;}
 
-  const VAPID_PUBLIC_KEY='BG_MKawNAMFlSovH1o7WkzZdKZX099oJdE8usdPOeVU7neKTw_1wlME9amL8b2wK11fd4TRfegsl541oBE2e8Mo';
+  const VAPID_PUBLIC_KEY='BHpQG83aS2LXf3bHpBj82NE9eEHXwB9Fd6aFqe2rXnGkfKdZEYl-avtSodQ8Lm6IXSWMcTaD2CqiibbyZir0TWw';
   const CACHE_KEY='xburguer_bills_cache_v1';
   const E2E_KEY='xb_e2e_bills_v1';
   const E2E_PUSH_KEY='xb_e2e_bills_push_v1';
