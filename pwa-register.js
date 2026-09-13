@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const REVISION='native-6-bills1';
+  const REVISION='native-5';
   const SCOPE='/xburguer-caixa/';
   const SCRIPT_PATH=SCOPE+'service-worker.js';
   let pending=null;
