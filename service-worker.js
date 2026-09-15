@@ -1,5 +1,5 @@
 // Revisão de assets: 2026-09-15 login-dual-panel
-const CACHE_NAME = "xburguer-caixa-native-v7-login-dual-4.19.2";
+const CACHE_NAME = "xburguer-caixa-native-v6-audit-4.18.3";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
   "./",
