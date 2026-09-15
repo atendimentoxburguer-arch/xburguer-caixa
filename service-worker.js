@@ -1,4 +1,4 @@
-// Revisão de assets: 2026-09-13 bills-push1
+// Revisão de assets: 2026-09-15 visual-refresh1
 const CACHE_NAME = "xburguer-caixa-native-v6-audit-4.18.3";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
@@ -29,6 +29,7 @@ const PRECACHE = [
   "./history-table-actions.css",
   "./login-modern.css",
   "./bills.css",
+  "./visual-refresh.css",
 
   "./frame-guard.js",
   "./shell1.js",
