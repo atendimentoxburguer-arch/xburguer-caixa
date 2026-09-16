@@ -1,4 +1,4 @@
-// Revisão de assets: 2026-09-15 login-dual-panel
+// Revisão de assets: 2026-09-15 login-final-polish
 const CACHE_NAME = "xburguer-caixa-native-v6-audit-4.18.3";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
@@ -34,6 +34,7 @@ const PRECACHE = [
   "./ui-refinement-v2.css",
   "./login-dual-panel.css",
   "./login-alignment.css",
+  "./login-final-polish.css",
 
   "./frame-guard.js",
   "./shell1.js",
