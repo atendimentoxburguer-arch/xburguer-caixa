@@ -1,4 +1,4 @@
-// Revisão de assets: 2026-09-16 visual-cleanup
+// Revisão de assets: 2026-09-16 auditoria-geral
 const CACHE_NAME = "xburguer-caixa-native-v6-audit-4.18.3";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
@@ -143,8 +143,14 @@ self.addEventListener("notificationclick", event => {
       try {
         const url = new URL(client.url);
         if (url.origin === self.location.origin && url.pathname.startsWith(APP_PATH)) {
-          await client.focus();
-          client.postMessage({ type: "XB_OPEN_BILLS", billId });
+          let targetClient = client;
+          try {
+            if (typeof client.navigate === "function") {
+              targetClient = (await client.navigate(target)) || client;
+            }
+          } catch (_) {}
+          await targetClient.focus();
+          try { targetClient.postMessage({ type: "XB_OPEN_BILLS", billId }); } catch (_) {}
           return;
         }
       } catch (_) {}
