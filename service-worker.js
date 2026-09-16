@@ -1,4 +1,4 @@
-// Revisão de assets: 2026-09-15 login-final-polish
+// Revisão de assets: 2026-09-16 visual-cleanup
 const CACHE_NAME = "xburguer-caixa-native-v6-audit-4.18.3";
 const APP_PATH = "/xburguer-caixa/";
 const PRECACHE = [
@@ -20,21 +20,18 @@ const PRECACHE = [
   "./mobile-readable.css",
   "./currency-format.css",
   "./page-transitions.css",
-  "./login-transitions.css",
   "./system-final.css",
   "./cash-conference-help.css",
   "./version.css",
   "./bread-summary.css",
   "./online-orders-equal.css",
   "./history-table-actions.css",
-  "./login-modern.css",
   "./bills.css",
   "./visual-refresh.css",
   "./neutral-theme.css",
   "./ui-refinement-v2.css",
-  "./login-dual-panel.css",
-  "./login-alignment.css",
-  "./login-final-polish.css",
+  "./system-visual-cleanup.css",
+  "./login-clean.css",
 
   "./frame-guard.js",
   "./shell1.js",
