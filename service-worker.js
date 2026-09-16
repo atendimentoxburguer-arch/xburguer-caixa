@@ -33,6 +33,7 @@ const PRECACHE = [
   "./neutral-theme.css",
   "./ui-refinement-v2.css",
   "./login-dual-panel.css",
+  "./login-alignment.css",
 
   "./frame-guard.js",
   "./shell1.js",
