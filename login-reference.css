@@ -1,0 +1,270 @@
+/* X-Burguer Caixa — login inspirado na referência aprovada pelo usuário.
+   Apenas visual; preserva autenticação e comportamento do sistema. */
+
+#loginScreen{
+  grid-template-columns:minmax(470px,46%) minmax(0,54%)!important;
+  background:#151a20!important;
+  color:#f5f6f7!important;
+}
+
+/* Painel institucional: sem contorno externo claro */
+#loginScreen .login-visual{
+  min-height:100dvh!important;
+  padding:46px 38px!important;
+  background:
+    radial-gradient(circle at 88% 5%,rgba(206,167,99,.055),transparent 25rem),
+    radial-gradient(circle at 12% 92%,rgba(255,255,255,.035),transparent 24rem),
+    linear-gradient(150deg,#272c34 0%,#1f242b 54%,#171b21 100%)!important;
+}
+#loginScreen .login-visual::before{
+  display:none!important;
+  content:none!important;
+}
+#loginScreen .login-visual::after{
+  width:420px!important;
+  height:420px!important;
+  right:-245px!important;
+  top:-225px!important;
+  border:1px solid rgba(206,167,99,.10)!important;
+  box-shadow:0 0 0 82px rgba(206,167,99,.018)!important;
+  opacity:.8!important;
+}
+#loginScreen .login-visual-inner{
+  width:min(100%,520px)!important;
+  min-height:calc(100dvh - 92px)!important;
+  justify-content:center!important;
+}
+
+#loginScreen .login-brand.login-brand-hero{
+  width:min(100%,360px)!important;
+  margin:0 0 24px!important;
+  padding:24px 24px 22px!important;
+  border:1px solid rgba(255,255,255,.14)!important;
+  border-radius:28px!important;
+  background:linear-gradient(145deg,rgba(255,255,255,.065),rgba(255,255,255,.018))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 16px 48px rgba(0,0,0,.10)!important;
+}
+#loginScreen .login-brand-hero .login-logo{
+  width:126px!important;
+  height:126px!important;
+  flex-basis:126px!important;
+  border:5px solid #d2b176!important;
+  outline:3px solid rgba(255,255,255,.90)!important;
+  outline-offset:-10px!important;
+  box-shadow:0 14px 34px rgba(0,0,0,.24)!important;
+}
+#loginScreen .login-brand-hero h2{
+  margin:18px 0 4px!important;
+  color:#f7f8f9!important;
+  font-size:21px!important;
+  letter-spacing:.075em!important;
+}
+#loginScreen .login-brand-hero p{
+  color:#adb3bc!important;
+  font-size:9px!important;
+  letter-spacing:.20em!important;
+}
+
+#loginScreen .login-hero-copy{
+  width:min(100%,470px)!important;
+}
+#loginScreen .login-hero-badge{
+  min-height:34px!important;
+  padding:0 15px!important;
+  border:1px solid rgba(206,167,99,.36)!important;
+  background:rgba(206,167,99,.08)!important;
+  color:#e8d8bb!important;
+}
+#loginScreen .login-hero-copy h2{
+  margin:22px 0 11px!important;
+  color:#f8f9fa!important;
+  font-size:clamp(2rem,2.45vw,2.7rem)!important;
+  line-height:1.02!important;
+  letter-spacing:-.047em!important;
+}
+#loginScreen .login-hero-copy h2 em{
+  color:#d4ad69!important;
+}
+#loginScreen .login-hero-copy>p{
+  max-width:420px!important;
+  color:#c6cbd1!important;
+  font-size:13px!important;
+  line-height:1.62!important;
+}
+#loginScreen .login-hero-chips{
+  margin-top:21px!important;
+  gap:10px!important;
+}
+#loginScreen .login-hero-chips span{
+  min-height:36px!important;
+  padding:0 14px!important;
+  border:1px solid rgba(255,255,255,.11)!important;
+  background:rgba(255,255,255,.035)!important;
+  color:#e7e9ec!important;
+}
+#loginScreen .login-hero-footer{
+  margin-top:28px!important;
+  color:#838a94!important;
+}
+
+/* Formulário: mesma linguagem escura da referência */
+#loginScreen .login-form-wrap{
+  min-height:100dvh!important;
+  padding:42px clamp(28px,5vw,78px)!important;
+  background:
+    radial-gradient(circle at 95% 5%,rgba(206,167,99,.07),transparent 22rem),
+    radial-gradient(circle at 8% 94%,rgba(255,255,255,.025),transparent 20rem),
+    linear-gradient(155deg,#181d23 0%,#14181e 100%)!important;
+}
+#loginScreen .login-form-wrap::after{
+  border-color:rgba(206,167,99,.10)!important;
+  opacity:.75!important;
+}
+#loginScreen .login-card{
+  width:min(100%,445px)!important;
+  max-width:445px!important;
+  padding:32px 32px 28px!important;
+  border:1px solid rgba(255,255,255,.10)!important;
+  border-radius:26px!important;
+  background:linear-gradient(180deg,#232930 0%,#1e242b 100%)!important;
+  box-shadow:0 28px 72px rgba(0,0,0,.28)!important;
+}
+#loginScreen .login-card::after{
+  background:linear-gradient(90deg,transparent,#d0aa69,transparent)!important;
+  opacity:.62!important;
+}
+#loginScreen .login-kicker{
+  border-color:rgba(206,167,99,.30)!important;
+  background:rgba(206,167,99,.08)!important;
+  color:#e4d3b7!important;
+}
+#loginScreen .login-kicker::before{
+  background:#d0aa69!important;
+  box-shadow:0 0 0 4px rgba(208,170,105,.11)!important;
+}
+#loginScreen .login-title{
+  color:#f8f9fa!important;
+}
+#loginScreen .login-subtitle{
+  color:#aeb5be!important;
+}
+#loginScreen .login-field label{
+  color:#d5d9de!important;
+}
+#loginScreen .login-field-icon{
+  color:#89919b!important;
+}
+#loginScreen .login-input{
+  border-color:rgba(255,255,255,.12)!important;
+  background:#2a3038!important;
+  color:#f1f3f5!important;
+  caret-color:#e2be80!important;
+}
+#loginScreen #loginUser{
+  background:#262d34!important;
+  color:#b9c4cc!important;
+}
+#loginScreen .login-input:hover{
+  border-color:rgba(255,255,255,.19)!important;
+  background:#2e353e!important;
+}
+#loginScreen .login-input:focus{
+  border-color:#b8955e!important;
+  background:#2c333b!important;
+  box-shadow:0 0 0 4px rgba(184,149,94,.12)!important;
+}
+#loginScreen .login-input::placeholder{color:#7f8791!important}
+#loginScreen .login-toggle{color:#9da5af!important}
+#loginScreen .login-toggle:hover{background:rgba(255,255,255,.055)!important;color:#f0f2f4!important}
+#loginScreen .login-remember,
+#loginScreen .login-security-note{color:#aeb5bd!important}
+#loginScreen .login-remember input{accent-color:#caa467!important}
+#loginScreen .login-security-note svg{stroke:#7fb08f!important}
+#loginScreen .login-btn{
+  min-height:52px!important;
+  height:52px!important;
+  border-color:#c6a064!important;
+  background:linear-gradient(135deg,#d3ae6d 0%,#b98f50 100%)!important;
+  color:#171b20!important;
+  box-shadow:0 12px 30px rgba(0,0,0,.22)!important;
+}
+#loginScreen .login-btn:hover{
+  border-color:#d9b97f!important;
+  background:linear-gradient(135deg,#dfbd80 0%,#c79c58 100%)!important;
+  box-shadow:0 15px 34px rgba(0,0,0,.28)!important;
+}
+#loginScreen .login-demo{
+  border-top-color:rgba(255,255,255,.08)!important;
+  color:#7f8790!important;
+}
+#loginScreen .login-error{
+  border-color:rgba(196,92,82,.36)!important;
+  background:rgba(126,48,43,.24)!important;
+  color:#f0c2bd!important;
+}
+
+/* Tablet */
+@media(max-width:980px){
+  #loginScreen{grid-template-columns:minmax(340px,42%) minmax(0,58%)!important}
+  #loginScreen .login-visual{padding:30px 24px!important}
+  #loginScreen .login-visual-inner{min-height:calc(100dvh - 60px)!important}
+  #loginScreen .login-brand.login-brand-hero{width:min(100%,310px)!important;padding:20px!important}
+  #loginScreen .login-brand-hero .login-logo{width:104px!important;height:104px!important;flex-basis:104px!important}
+  #loginScreen .login-hero-copy h2{font-size:31px!important}
+  #loginScreen .login-hero-copy>p{font-size:12px!important}
+  #loginScreen .login-form-wrap{padding:28px!important}
+  #loginScreen .login-card{padding:29px 27px 26px!important}
+}
+
+/* Celular: mantém a identidade, sem deixar o login excessivamente alto */
+@media(max-width:760px){
+  #loginScreen{
+    grid-template-columns:1fr!important;
+    grid-template-rows:auto auto!important;
+    overflow-y:auto!important;
+  }
+  #loginScreen .login-visual{
+    min-height:auto!important;
+    padding:24px 18px 22px!important;
+  }
+  #loginScreen .login-visual-inner{
+    min-height:auto!important;
+    width:min(100%,520px)!important;
+  }
+  #loginScreen .login-brand.login-brand-hero{
+    width:min(100%,330px)!important;
+    margin-bottom:14px!important;
+    padding:16px 18px!important;
+    border-radius:22px!important;
+  }
+  #loginScreen .login-brand-hero .login-logo{
+    width:78px!important;
+    height:78px!important;
+    flex-basis:78px!important;
+    border-width:4px!important;
+  }
+  #loginScreen .login-brand-hero h2{margin-top:11px!important;font-size:17px!important}
+  #loginScreen .login-brand-hero p{font-size:8px!important}
+  #loginScreen .login-hero-badge{display:none!important}
+  #loginScreen .login-hero-copy h2{margin:8px 0 7px!important;font-size:27px!important}
+  #loginScreen .login-hero-copy>p{font-size:11.5px!important;line-height:1.45!important}
+  #loginScreen .login-hero-chips{margin-top:13px!important;gap:7px!important}
+  #loginScreen .login-hero-chips span{min-height:32px!important;padding:0 10px!important;font-size:9.5px!important}
+  #loginScreen .login-hero-footer{display:none!important}
+  #loginScreen .login-form-wrap{
+    min-height:auto!important;
+    padding:18px 14px 28px!important;
+  }
+  #loginScreen .login-card{padding:26px 21px 23px!important;border-radius:22px!important}
+  #loginScreen .login-title{font-size:31px!important}
+}
+
+@media(max-width:480px){
+  #loginScreen .login-hero-copy h2{font-size:24px!important}
+  #loginScreen .login-hero-copy>p{display:none!important}
+  #loginScreen .login-brand.login-brand-hero{width:min(100%,300px)!important}
+  #loginScreen .login-form-wrap{padding-left:10px!important;padding-right:10px!important}
+  #loginScreen .login-card{padding:24px 18px 22px!important}
+  #loginScreen .login-row.single{gap:8px!important}
+  #loginScreen .login-security-note{font-size:9.5px!important}
+}

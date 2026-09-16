@@ -32,6 +32,7 @@ const PRECACHE = [
   "./ui-refinement-v2.css",
   "./system-visual-cleanup.css",
   "./login-clean.css",
+  "./login-reference.css",
 
   "./frame-guard.js",
   "./shell1.js",
