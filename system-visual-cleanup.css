@@ -1,0 +1,99 @@
+/* X-Burguer Caixa — limpeza visual global.
+   Corrige alinhamentos, espaçamentos e linhas sem alterar regras de negócio. */
+
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+body,*{box-sizing:border-box}
+img,svg{max-width:100%}
+button,input,select,textarea{font:inherit}
+button,.btn{line-height:1.2}
+
+.main,.page,.page-wrap,.panel,.card,.formbar,.grid,.cards,.row,.top,.sidebar{min-width:0}
+.page-wrap{width:100%;margin:0 auto}
+.page-head,.panel-title,.section-bar,.top{align-items:center}
+.page-head>* , .panel-title>* , .top>*{min-width:0}
+
+/* Linhas e superfícies coerentes */
+.card,.panel,.formbar{
+  border-color:var(--line,#e4e6e9)!important;
+  background:var(--surface,#fff)!important;
+}
+.card,.panel{overflow:hidden}
+.panel-title{display:flex;justify-content:space-between;gap:14px}
+.section-bar{
+  display:flex!important;
+  align-items:center!important;
+  min-width:0!important;
+  line-height:1.25!important;
+}
+
+/* Formulários */
+label{line-height:1.25}
+input:not([type="checkbox"]):not([type="radio"]),
+select,textarea{
+  width:100%;
+  max-width:100%;
+  line-height:1.35;
+}
+textarea{resize:vertical}
+input[type="checkbox"],input[type="radio"]{vertical-align:middle}
+.formbar>*{min-width:0}
+
+/* Botões e ícones */
+.btn,button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+.btn svg,button svg{display:block;flex:0 0 auto}
+
+/* Navegação lateral */
+.nav button{width:100%;text-align:left}
+.nav button>div{min-width:0;display:flex;flex-direction:column;justify-content:center}
+.nav button strong,.nav button div>span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav .ico{display:grid!important;place-items:center!important;align-self:center!important}
+.brand{align-items:center}
+.brand>div{min-width:0}
+
+/* Cabeçalho */
+.top{display:flex;justify-content:space-between;gap:18px}
+.top>div{min-width:0}
+.top h1,.top p{margin-left:0;margin-right:0}
+
+/* Tabelas */
+table{width:100%;max-width:100%;border-collapse:separate;border-spacing:0}
+th,td{vertical-align:middle;line-height:1.35}
+th:first-child,td:first-child{padding-left:14px}
+th:last-child,td:last-child{padding-right:14px}
+
+/* Blocos financeiros e indicadores */
+.cards,.grid{align-items:stretch}
+.card{height:100%}
+.card .label,.card .hint,.num{max-width:100%}
+.num{overflow-wrap:anywhere}
+
+/* Boletos */
+.bills-device-panel,.bills-form,.bills-toolbar,.bill-item{min-width:0}
+.bill-item>*{min-width:0}
+.bill-actions button{min-height:34px;display:inline-flex;align-items:center;justify-content:center}
+.bills-empty{line-height:1.5}
+
+/* Modais e sobreposições comuns */
+.modal,.dialog,.overlay{box-sizing:border-box}
+.modal-card,.dialog-card,.modal-content{max-width:calc(100vw - 28px);max-height:calc(100dvh - 28px);overflow:auto}
+
+/* Evita linhas tortas por subpixel em contêineres principais */
+.sidebar,.top,.card,.panel,.formbar,.section-bar,.login-card{transform:translateZ(0)}
+
+@media(max-width:900px){
+  .page-wrap{padding-left:18px!important;padding-right:18px!important}
+  .top{padding-left:18px!important;padding-right:18px!important}
+  .panel-title{align-items:flex-start}
+}
+
+@media(max-width:640px){
+  .page-wrap{padding-left:12px!important;padding-right:12px!important}
+  .top{padding-left:12px!important;padding-right:12px!important}
+  .btn{min-height:42px}
+  th,td{padding-top:10px;padding-bottom:10px}
+}
