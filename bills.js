@@ -121,6 +121,13 @@
     wrap.appendChild(section);
   }
 
+  function clearSensitiveCache(){
+    try{localStorage.removeItem(CACHE_KEY)}catch{}
+    rows=[];editingId=null;pendingFocusId='';
+    activeFilter='pending';searchQuery='';dateFrom='';dateTo='';
+    try{clearForm();render()}catch{}
+  }
+
   async function apiList(){
     if(window.__XB_E2E__)return readE2E();
     return await sbRest('bills?select=*&order=due_date.asc,created_at.desc');
@@ -451,6 +458,7 @@
     rows:()=>structuredClone(rows),
     stateForBill:logic.stateForBill,
     setFilter:setActiveFilter,
+    clearSensitiveCache,
     resetE2E(){localStorage.removeItem(E2E_KEY);localStorage.removeItem(E2E_PUSH_KEY);rows=[];activeFilter='pending';searchQuery='';dateFrom='';dateTo='';render();clearForm()}
   };
 })();

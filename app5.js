@@ -84,6 +84,18 @@ function showApp(){
   },390);
 }
 
+function clearAuthenticatedView(){
+  cloudData=[];
+  try{localStorage.removeItem('xburguer_bills_cache_v1')}catch{}
+  try{window.XBBills?.clearSensitiveCache?.()}catch{}
+  try{
+    resetFormFields(activeClosingDate||isoToday());
+    formDirty=false;
+  }catch{}
+  try{refreshAll()}catch{}
+}
+window.xbClearAuthenticatedView=clearAuthenticatedView;
+
 async function logout(){
   clearTimeout(appRevealTimer);appRevealTimer=null;
   if(formDirty)flushDraft(activeClosingDate);
@@ -95,9 +107,10 @@ async function logout(){
       },6000);
     }
   }catch{}
-  authSession=null;currentUser=null;currentProfile=null;cloudData=[];
+  authSession=null;currentUser=null;currentProfile=null;
   document.body.classList.remove('app-reveal');
   clearStoredSessions();
+  clearAuthenticatedView();
   $('loginScreen').classList.remove('hidden','leaving');
   $('loginPass').value='';
   $('userName').textContent='Usuário';$('userRole').textContent='Desconectado';
@@ -152,7 +165,8 @@ async function bootstrapCloud(){
       return;
     }
 
-    clearStoredSessions();authSession=null;currentUser=null;currentProfile=null;cloudData=[];
+    clearStoredSessions();authSession=null;currentUser=null;currentProfile=null;
+    clearAuthenticatedView();
     setCloudStatus('● Faça login','error');
     toast(err?.message||'Não foi possível restaurar a sessão. Entre novamente.','error');
     refreshAll();
@@ -240,7 +254,8 @@ $('loginForm').addEventListener('submit',async e=>{
     refreshAll();showApp();toast('Login realizado. Dados sincronizados.');
     if(typeof startRealtimeSync==='function')startRealtimeSync(true).catch(()=>{});
   }catch(err){
-    clearStoredSessions();authSession=null;currentUser=null;currentProfile=null;cloudData=[];
+    clearStoredSessions();authSession=null;currentUser=null;currentProfile=null;
+    clearAuthenticatedView();
     $('loginError').textContent=err.message||'Não foi possível entrar no sistema.';
     $('loginError').style.display='block';
     setCloudStatus('● Falha no login','error');
