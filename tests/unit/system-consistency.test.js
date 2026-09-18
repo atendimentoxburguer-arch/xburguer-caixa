@@ -35,6 +35,14 @@ test('camadas legadas de login permanecem removidas do runtime e do repositório
   }
 });
 
+test('helper PWA legado permanece fora do runtime e do repositório', () => {
+  const caixa = read('caixa.html');
+  const index = read('index.html');
+  assert.equal(caixa.includes('install-helper.js'), false);
+  assert.equal(index.includes('install-helper.js'), false);
+  assert.equal(fs.existsSync(path.join(root, 'install-helper.js')), false);
+});
+
 test('workflow principal usa a mesma geração auditada do checkout', () => {
   const workflow = read('.github/workflows/validar-isolamento.yml');
   assert.match(workflow, /actions\/checkout@v7/);
