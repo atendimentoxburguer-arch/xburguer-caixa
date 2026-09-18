@@ -54,3 +54,17 @@ test('função de lembretes não devolve detalhes internos de configuração', (
   assert.doesNotMatch(edge, /detail\s*:\s*configError\.message/);
   assert.match(edge, /timingSafeEqual/);
 });
+
+test('sessão persistida minimiza credenciais e força renovação após recarregar', () => {
+  const app = read('app1.js');
+  const start = app.indexOf('function sessionForStorage');
+  const end = app.indexOf('async function fetchWithTimeout');
+  assert.ok(start >= 0 && end > start, 'bloco de persistência de sessão precisa existir');
+  const block = app.slice(start, end);
+  assert.match(block, /refresh_token:String\(session\.refresh_token\)/);
+  assert.match(block, /expires_at:0/);
+  assert.match(block, /user:sessionUser\(session\.user\)/);
+  assert.doesNotMatch(block, /access_token\s*:/);
+  assert.match(app, /user:sessionUser\(data\.user\)/);
+});
+

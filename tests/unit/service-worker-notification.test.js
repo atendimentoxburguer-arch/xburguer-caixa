@@ -25,3 +25,8 @@ test('cache do PWA normaliza query strings e remove entradas legadas duplicadas'
   assert.match(sw, /cache\.match\(cacheKeyForRequest\(request\)\)/);
   assert.match(sw, /Boolean\(url\.search \|\| url\.hash\)/);
 });
+
+test('atualização do cache mantém o service worker vivo até concluir a gravação', () => {
+  assert.match(sw, /event\.waitUntil\(cache\.put\(cacheKeyForRequest\(request\), response\.clone\(\)\)\.catch\(\(\) => \{\}\)\)/);
+});
+
