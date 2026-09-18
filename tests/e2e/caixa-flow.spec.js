@@ -196,19 +196,33 @@ test('restauração preserva caixa e turno e avisa sobre atualizações existent
     {...existing,resp:'Fechamento Atualizado',registerName:'Caixa Principal',shiftName:'Dia'},
     {...existing,_id:undefined,date:secondaryDate,resp:'Fechamento Noturno',registerName:'Caixa Secundário',shiftName:'Noite'}
   ];
+  const checksum=await page.evaluate(async records=>{
+    const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(records)));
+    return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  },backupRecords);
+  const envelope={
+    format:'xburguer-caixa-backup-v2',
+    version:'4.18.3',
+    exportedAt:new Date().toISOString(),
+    recordCount:backupRecords.length,
+    integrity:{algorithm:'SHA-256',scope:'records-json',checksum},
+    records:backupRecords
+  };
   const tempPath=path.join(os.tmpdir(),`xburguer-restore-identity-${Date.now()}.json`);
-  await fs.writeFile(tempPath,JSON.stringify(backupRecords),'utf8');
+  await fs.writeFile(tempPath,JSON.stringify(envelope),'utf8');
 
   try{
     await page.locator('[data-page="backup"]').click();
     await page.locator('#importFile').setInputFiles(tempPath);
-    await expect(page.locator('#backupImportHint')).toContainText('Backup antigo compatível',{timeout:5000});
+    await expect(page.locator('#backupImportHint')).toContainText('não está registrada na nuvem',{timeout:5000});
     await expect(page.locator('#importBtn')).toBeEnabled();
 
     await page.locator('#importBtn').click();
     await expect(page.locator('#confirmLayer')).not.toHaveAttribute('hidden','');
     await expect(page.locator('#confirmLayer')).toContainText('1 fechamento existente com a mesma data, caixa e turno será atualizado');
+    await expect(page.locator('#confirmLayer')).toContainText('A integridade SHA-256 foi confirmada, mas esta cópia não consta entre as exportações registradas na nuvem');
     await expect(page.locator('#confirmLayer')).toContainText('Nenhum fechamento fora do arquivo será apagado');
+    await expect(page.locator('#confirmOkBtn')).toHaveText('Restaurar mesmo assim');
     await page.locator('#confirmOkBtn').click();
     await expect(page.locator('#toast')).toContainText('restaurado com sucesso',{timeout:5000});
 
@@ -225,6 +239,46 @@ test('restauração preserva caixa e turno e avisa sobre atualizações existent
     expect(secondary?.registerName).toBe('Caixa Secundário');
     expect(secondary?.shiftName).toBe('Noite');
     expect(secondary?.resp).toBe('Fechamento Noturno');
+  }finally{
+    await fs.unlink(tempPath).catch(()=>{});
+  }
+});
+
+test('backup protegido registrado na nuvem confirma a origem',async({page})=>{
+  await openCleanApp(page);
+  await login(page);
+  const date='2026-08-20';
+  await fillBalancedClosing(page,{date,resp:'Backup Registrado',value:61});
+  await page.locator('#saveTopBtn').click();
+  await expect(page.locator('#toast')).toContainText('salvo',{timeout:5000});
+
+  const records=await page.evaluate(()=>structuredClone(window.XBE2E.records()));
+  const checksum=await page.evaluate(async rows=>{
+    const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(rows)));
+    return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  },records);
+  await page.evaluate(value=>window.XBE2E.registerBackupChecksum(value),checksum);
+
+  const envelope={
+    format:'xburguer-caixa-backup-v2',
+    version:'4.18.3',
+    exportedAt:new Date().toISOString(),
+    recordCount:records.length,
+    integrity:{algorithm:'SHA-256',scope:'records-json',checksum},
+    records
+  };
+  const tempPath=path.join(os.tmpdir(),`xburguer-restore-registered-${Date.now()}.json`);
+  await fs.writeFile(tempPath,JSON.stringify(envelope),'utf8');
+
+  try{
+    await page.locator('[data-page="backup"]').click();
+    await page.locator('#importFile').setInputFiles(tempPath);
+    await expect(page.locator('#backupImportHint')).toContainText('registrado na nuvem',{timeout:5000});
+    await page.locator('#importBtn').click();
+    await expect(page.locator('#confirmLayer')).toContainText('A origem desta cópia foi confirmada pelo registro correspondente na nuvem');
+    await expect(page.locator('#confirmOkBtn')).toHaveText('Importar agora');
+    await page.locator('#confirmOkBtn').click();
+    await expect(page.locator('#toast')).toContainText('restaurado com sucesso',{timeout:5000});
   }finally{
     await fs.unlink(tempPath).catch(()=>{});
   }
