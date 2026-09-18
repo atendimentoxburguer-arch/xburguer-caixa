@@ -88,6 +88,13 @@ const PRECACHE = [
   "./icons/xburguer-caixa-maskable-512-v4150.png"
 ];
 
+function cacheKeyForRequest(request) {
+  const url = new URL(request.url);
+  url.search = "";
+  url.hash = "";
+  return url.href;
+}
+
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -97,15 +104,32 @@ self.addEventListener("install", event => {
 });
 
 self.addEventListener("activate", event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys
-          .filter(key => key.startsWith("xburguer-caixa-") && key !== CACHE_NAME)
-          .map(key => caches.delete(key))
-      ))
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys
+        .filter(key => key.startsWith("xburguer-caixa-") && key !== CACHE_NAME)
+        .map(key => caches.delete(key))
+    );
+
+    // Revisões anteriores armazenavam cada query string como uma entrada distinta.
+    // Mantemos apenas a URL canônica para evitar crescimento do cache com
+    // ?v=..., ?open=bills e identificadores de notificações.
+    const cache = await caches.open(CACHE_NAME);
+    const requests = await cache.keys();
+    await Promise.all(
+      requests
+        .filter(request => {
+          const url = new URL(request.url);
+          return url.origin === self.location.origin &&
+            url.pathname.startsWith(APP_PATH) &&
+            Boolean(url.search || url.hash);
+        })
+        .map(request => cache.delete(request))
+    );
+
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener("push", event => {
@@ -172,14 +196,14 @@ self.addEventListener("fetch", event => {
     try {
       const response = await fetch(new Request(request, { cache: "no-store" }));
       if (response && response.ok) {
-        cache.put(request, response.clone()).catch(() => {});
+        cache.put(cacheKeyForRequest(request), response.clone()).catch(() => {});
       }
       return response;
     } catch (_) {
-      /* Primeiro tenta a URL exata (incluindo o cache-bust). Isso evita que uma
-         cópia antiga sem query seja escolhida antes da versão mais nova. */
-      const exact = await cache.match(request);
-      if (exact) return exact;
+      // O cache usa uma chave canônica sem query/hash para não acumular
+      // cópias equivalentes do mesmo asset ou navegação.
+      const normalized = await cache.match(cacheKeyForRequest(request));
+      if (normalized) return normalized;
 
       const cached = await cache.match(request, { ignoreSearch: true });
       if (cached) return cached;
