@@ -21,7 +21,8 @@
     try{url=new URL(raw,location.href)}catch{return originalFetch(input,init)}
     if(url.hostname==='trnngxezppeembrvxkhh.supabase.co'){
       if(url.pathname.endsWith('/rest/v1/backup_exports')&&registeredBackupChecksum){
-        const checksum=String(url.searchParams.get('checksum')||'').replace(/^eq\\./,'');
+        const rawChecksum=String(url.searchParams.get('checksum')||'');
+        const checksum=rawChecksum.startsWith('eq.')?rawChecksum.slice(3):rawChecksum;
         const rows=checksum===registeredBackupChecksum?[{
           exported_at:new Date().toISOString(),
           record_count:readRecords().length,
