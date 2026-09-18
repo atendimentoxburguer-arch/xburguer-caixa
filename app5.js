@@ -44,12 +44,20 @@ async function importJSON(){
     const collisionNote=collisionCount
       ? `${collisionCount} fechamento${collisionCount===1?' existente com a mesma data, caixa e turno será atualizado':'s existentes com a mesma data, caixa e turno serão atualizados'}.`
       : 'Nenhum fechamento existente com a mesma data, caixa e turno será atualizado.';
+    const importStatus=window.XBBackupProtection?.importStatus?.()||{};
+    const originNote=importStatus.registration==='verified'
+      ? 'A origem desta cópia foi confirmada pelo registro correspondente na nuvem.'
+      : importStatus.registration==='unregistered'
+        ? 'A integridade SHA-256 foi confirmada, mas esta cópia não consta entre as exportações registradas na nuvem. A origem não pôde ser confirmada.'
+        : importStatus.registration==='unavailable'
+          ? 'A integridade SHA-256 foi confirmada, mas a verificação da origem na nuvem não está disponível neste momento.'
+          : '';
 
     const importOk=await openConfirmModal({
       title:'Importar backup',
       message:`Importar ${records.length} registros para o banco na nuvem?`,
-      note:`${collisionNote} Nenhum fechamento fora do arquivo será apagado. A restauração é atômica: se algum registro falhar, nenhum fechamento do arquivo será aplicado.`,
-      confirmText:'Importar agora',
+      note:`${collisionNote} ${originNote} Nenhum fechamento fora do arquivo será apagado. A restauração é atômica: se algum registro falhar, nenhum fechamento do arquivo será aplicado.`,
+      confirmText:importStatus.registration==='unregistered'?'Restaurar mesmo assim':'Importar agora',
       badge:'Importação'
     });
     if(!importOk)return;
