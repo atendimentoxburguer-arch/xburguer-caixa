@@ -1,6 +1,3 @@
--- X-Burguer Caixa — restauração fiel do fechamento excluído.
--- Preserva register_name e shift_name do registro original no recovery payload.
-
 create or replace function public.restore_deleted_cash_closing(p_recovery_id uuid)
 returns uuid
 language plpgsql
