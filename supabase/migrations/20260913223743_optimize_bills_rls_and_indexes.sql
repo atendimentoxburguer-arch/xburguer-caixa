@@ -1,5 +1,3 @@
--- X-Burguer Caixa — otimizações de RLS e índice para notificações.
-
 create index if not exists bill_notification_log_subscription_idx
 on public.bill_notification_log(subscription_id);
 
