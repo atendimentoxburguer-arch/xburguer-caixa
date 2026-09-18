@@ -181,6 +181,55 @@ test('fechamento excluído pode ser restaurado pelo backup íntegro',async({page
   expect(restored[0].sales).toBe(48);
 });
 
+test('restauração preserva caixa e turno e avisa sobre atualizações existentes',async({page})=>{
+  await openCleanApp(page);
+  await login(page);
+
+  const existingDate='2026-08-18';
+  const secondaryDate='2026-08-19';
+  await fillBalancedClosing(page,{date:existingDate,resp:'Fechamento Atual',value:52});
+  await page.locator('#saveTopBtn').click();
+  await expect(page.locator('#toast')).toContainText('salvo',{timeout:5000});
+
+  const existing=await page.evaluate(()=>structuredClone(window.XBE2E.records()[0]));
+  const backupRecords=[
+    {...existing,resp:'Fechamento Atualizado',registerName:'Caixa Principal',shiftName:'Dia'},
+    {...existing,_id:undefined,date:secondaryDate,resp:'Fechamento Noturno',registerName:'Caixa Secundário',shiftName:'Noite'}
+  ];
+  const tempPath=path.join(os.tmpdir(),`xburguer-restore-identity-${Date.now()}.json`);
+  await fs.writeFile(tempPath,JSON.stringify(backupRecords),'utf8');
+
+  try{
+    await page.locator('[data-page="backup"]').click();
+    await page.locator('#importFile').setInputFiles(tempPath);
+    await expect(page.locator('#backupImportHint')).toContainText('Backup antigo compatível',{timeout:5000});
+    await expect(page.locator('#importBtn')).toBeEnabled();
+
+    await page.locator('#importBtn').click();
+    await expect(page.locator('#confirmLayer')).not.toHaveAttribute('hidden','');
+    await expect(page.locator('#confirmLayer')).toContainText('1 fechamento existente com a mesma data, caixa e turno será atualizado');
+    await expect(page.locator('#confirmLayer')).toContainText('Nenhum fechamento fora do arquivo será apagado');
+    await page.locator('#confirmOkBtn').click();
+    await expect(page.locator('#toast')).toContainText('restaurado com sucesso',{timeout:5000});
+
+    const restorePayload=await page.evaluate(()=>window.XBE2E.lastRestorePayload());
+    expect(restorePayload).toHaveLength(2);
+    expect(restorePayload[0].register_name).toBe('Caixa Principal');
+    expect(restorePayload[0].shift_name).toBe('Dia');
+    expect(restorePayload[1].register_name).toBe('Caixa Secundário');
+    expect(restorePayload[1].shift_name).toBe('Noite');
+
+    const restored=await page.evaluate(()=>window.XBE2E.records());
+    expect(restored).toHaveLength(2);
+    const secondary=restored.find(item=>item.date===secondaryDate);
+    expect(secondary?.registerName).toBe('Caixa Secundário');
+    expect(secondary?.shiftName).toBe('Noite');
+    expect(secondary?.resp).toBe('Fechamento Noturno');
+  }finally{
+    await fs.unlink(tempPath).catch(()=>{});
+  }
+});
+
 test('backup protegido alterado é bloqueado antes da restauração',async({page})=>{
   await openCleanApp(page);
   await login(page);

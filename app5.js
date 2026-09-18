@@ -1,5 +1,31 @@
 let appRevealTimer=null;
 
+function restoreIdentity(record={}){
+  const registerName=String(record?.register_name??record?.registerName??'Caixa Principal').trim()||'Caixa Principal';
+  const shiftName=String(record?.shift_name??record?.shiftName??'Dia').trim()||'Dia';
+  return {registerName,shiftName};
+}
+
+function restoreKey(record={}){
+  const identity=restoreIdentity(record);
+  return [String(record?.date||''),identity.registerName,identity.shiftName].join('\u001f');
+}
+
+function prepareRestoreRecord(record){
+  const identity=restoreIdentity(record);
+  const normalized=normalize(structuredClone(record));
+  normalized.registerName=identity.registerName;
+  normalized.shiftName=identity.shiftName;
+  normalized.register_name=identity.registerName;
+  normalized.shift_name=identity.shiftName;
+  return normalized;
+}
+
+function restoreCollisionCount(records){
+  const existing=new Set((typeof load==='function'?(load()||[]):[]).map(restoreKey));
+  return records.reduce((count,record)=>count+(existing.has(restoreKey(record))?1:0),0);
+}
+
 async function importJSON(){
   const file=$('importFile').files[0];
   if(!file)return toast('Selecione um arquivo JSON.','error');
@@ -13,11 +39,16 @@ async function importJSON(){
     if(backupValid!==true)throw new Error(backupValid);
     if(!records.length)return toast('O backup não possui fechamentos para restaurar.','error');
     restoredCount=records.length;
+    const normalizedRecords=records.map(prepareRestoreRecord);
+    const collisionCount=restoreCollisionCount(normalizedRecords);
+    const collisionNote=collisionCount
+      ? `${collisionCount} fechamento${collisionCount===1?' existente com a mesma data, caixa e turno será atualizado':'s existentes com a mesma data, caixa e turno serão atualizados'}.`
+      : 'Nenhum fechamento existente com a mesma data, caixa e turno será atualizado.';
 
     const importOk=await openConfirmModal({
       title:'Importar backup',
       message:`Importar ${records.length} registros para o banco na nuvem?`,
-      note:'A restauração é atômica: se algum registro falhar, nenhum fechamento do arquivo será aplicado.',
+      note:`${collisionNote} Nenhum fechamento fora do arquivo será apagado. A restauração é atômica: se algum registro falhar, nenhum fechamento do arquivo será aplicado.`,
       confirmText:'Importar agora',
       badge:'Importação'
     });
@@ -28,7 +59,6 @@ async function importJSON(){
     $('importBtn').textContent='Importando...';
     setCloudStatus('● Importando...','syncing');
 
-    const normalizedRecords=records.map(r=>normalize(structuredClone(r)));
     await sbRest('rpc/restore_cash_backup',{
       method:'POST',
       headers:{'Prefer':'return=representation'},

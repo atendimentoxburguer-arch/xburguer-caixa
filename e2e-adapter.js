@@ -12,6 +12,7 @@
   const originalFetch=window.fetch.bind(window);
   let nextSaveError=null;
   let nextLoadError=null;
+  let lastRestorePayload=[];
 
   window.fetch=async function(input,init){
     const raw=typeof input==='string'?input:input?.url||'';
@@ -30,13 +31,29 @@
     }catch{return []}
   }
   function writeRecords(rows){localStorage.setItem(DATA_KEY,JSON.stringify(rows))}
+  function recordIdentity(record={}){
+    const registerName=String(record?.register_name??record?.registerName??'Caixa Principal').trim()||'Caixa Principal';
+    const shiftName=String(record?.shift_name??record?.shiftName??'Dia').trim()||'Dia';
+    return {registerName,shiftName};
+  }
+  function recordKey(record={}){
+    const identity=recordIdentity(record);
+    return [String(record?.date||''),identity.registerName,identity.shiftName].join('\u001f');
+  }
   function upsertRecord(record){
     const rows=readRecords();
     const normalized=rules?.normalizeRecord?rules.normalizeRecord(record,{cashCountVerified:record.cashCountVerified}):record;
-    const saved={...normalized,_id:record._id||`e2e-${record.date}`,savedAt:new Date().toISOString()};
-    const index=rows.findIndex(item=>item.date===saved.date);
+    const identity=recordIdentity(normalized);
+    const saved={
+      ...normalized,
+      registerName:identity.registerName,
+      shiftName:identity.shiftName,
+      _id:record._id||`e2e-${record.date}-${identity.registerName}-${identity.shiftName}`,
+      savedAt:new Date().toISOString()
+    };
+    const index=rows.findIndex(item=>recordKey(item)===recordKey(saved));
     if(index>=0)rows[index]=saved;else rows.push(saved);
-    rows.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    rows.sort((a,b)=>recordKey(a).localeCompare(recordKey(b)));
     writeRecords(rows);
     return saved;
   }
@@ -105,6 +122,7 @@
     if(target.startsWith('rpc/restore_cash_backup')){
       const payload=typeof options.body==='string'?JSON.parse(options.body):options.body||{};
       const records=Array.isArray(payload.p_records)?payload.p_records:[];
+      lastRestorePayload=records.map(record=>structuredClone(record));
       records.forEach(upsertRecord);cloudData=readRecords();return {restored:records.length};
     }
     if(target.startsWith('profiles?'))return [{full_name:'Teste Automatizado',role:'manager',active:true}];
@@ -131,8 +149,9 @@
 
   window.XBE2E={
     enabled:true,
-    reset(){localStorage.removeItem(DATA_KEY);clearStoredSessions();cloudData=[];nextSaveError=null;nextLoadError=null},
+    reset(){localStorage.removeItem(DATA_KEY);clearStoredSessions();cloudData=[];nextSaveError=null;nextLoadError=null;lastRestorePayload=[]},
     records:readRecords,
+    lastRestorePayload:()=>structuredClone(lastRestorePayload),
     failNextSave(message='Falha de salvamento E2E simulada.'){nextSaveError=String(message||'Falha de salvamento E2E simulada.')},
     failNextLoad(message='Falha de atualização E2E simulada.'){nextLoadError=String(message||'Falha de atualização E2E simulada.')}
   };
