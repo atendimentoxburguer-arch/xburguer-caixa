@@ -13,12 +13,24 @@
   let nextSaveError=null;
   let nextLoadError=null;
   let lastRestorePayload=[];
+  let registeredBackupChecksum=null;
 
   window.fetch=async function(input,init){
     const raw=typeof input==='string'?input:input?.url||'';
     let url;
     try{url=new URL(raw,location.href)}catch{return originalFetch(input,init)}
     if(url.hostname==='trnngxezppeembrvxkhh.supabase.co'){
+      if(url.pathname.endsWith('/rest/v1/backup_exports')&&registeredBackupChecksum){
+        const rawChecksum=String(url.searchParams.get('checksum')||'');
+        const checksum=rawChecksum.startsWith('eq.')?rawChecksum.slice(3):rawChecksum;
+        const rows=checksum===registeredBackupChecksum?[{
+          exported_at:new Date().toISOString(),
+          record_count:readRecords().length,
+          checksum,
+          format_version:'xburguer-caixa-backup-v2'
+        }]:[];
+        return new Response(JSON.stringify(rows),{status:200,headers:{'Content-Type':'application/json'}});
+      }
       return new Response('[]',{status:200,headers:{'Content-Type':'application/json'}});
     }
     return originalFetch(input,init);
@@ -126,7 +138,17 @@
       records.forEach(upsertRecord);cloudData=readRecords();return {restored:records.length};
     }
     if(target.startsWith('profiles?'))return [{full_name:'Teste Automatizado',role:'manager',active:true}];
-    if(target.startsWith('backup_exports?'))return [];
+    if(target.startsWith('backup_exports?')){
+      if(!registeredBackupChecksum)return [];
+      const match=target.match(/checksum=eq\.([^&]+)/);
+      const checksum=match?decodeURIComponent(match[1]):'';
+      return checksum===registeredBackupChecksum?[{
+        exported_at:new Date().toISOString(),
+        record_count:readRecords().length,
+        checksum,
+        format_version:'xburguer-caixa-backup-v2'
+      }]:[];
+    }
     if(target.startsWith('cash_backup_snapshots?'))return [];
     if(target.startsWith('rpc/create_cash_snapshot'))return {snapshot_day:new Date().toISOString().slice(0,10),record_count:readRecords().length};
     return [];
@@ -149,9 +171,10 @@
 
   window.XBE2E={
     enabled:true,
-    reset(){localStorage.removeItem(DATA_KEY);clearStoredSessions();cloudData=[];nextSaveError=null;nextLoadError=null;lastRestorePayload=[]},
+    reset(){localStorage.removeItem(DATA_KEY);clearStoredSessions();cloudData=[];nextSaveError=null;nextLoadError=null;lastRestorePayload=[];registeredBackupChecksum=null},
     records:readRecords,
     lastRestorePayload:()=>structuredClone(lastRestorePayload),
+    registerBackupChecksum(checksum){registeredBackupChecksum=String(checksum||'').toLowerCase()},
     failNextSave(message='Falha de salvamento E2E simulada.'){nextSaveError=String(message||'Falha de salvamento E2E simulada.')},
     failNextLoad(message='Falha de atualização E2E simulada.'){nextLoadError=String(message||'Falha de atualização E2E simulada.')}
   };

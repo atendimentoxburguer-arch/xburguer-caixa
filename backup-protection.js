@@ -9,7 +9,7 @@
   let latestExternalExport=null;
   let externalVerificationState='unknown';
   let snapshotVerificationState='unknown';
-  let importVerification={status:'idle',message:'',verified:false,legacy:false};
+  let importVerification={status:'idle',message:'',verified:false,legacy:false,registration:'unknown',registeredAt:null};
   let statusPromise=null;
   let snapshotPromise=null;
 
@@ -113,6 +113,26 @@
     if(actual!==expected)throw new Error('A verificação SHA-256 falhou. O arquivo pode estar corrompido ou ter sido alterado.');
 
     return {records,verified:true,legacy:false,checksum:actual,recordCount:records.length};
+  }
+
+  async function verifyRegisteredExport(checksum,recordCount){
+    if(!baseSbRest||!authSession?.access_token||!currentUser?.id||!navigator.onLine){
+      return {status:'unavailable',registeredAt:null};
+    }
+    try{
+      const path='backup_exports?select=exported_at,record_count,checksum,format_version'
+        +`&checksum=eq.${encodeURIComponent(String(checksum))}`
+        +`&record_count=eq.${encodeURIComponent(String(recordCount))}`
+        +`&format_version=eq.${encodeURIComponent(FORMAT)}`
+        +'&order=exported_at.desc&limit=1';
+      const rows=await baseSbRest(path);
+      const row=Array.isArray(rows)?rows[0]:null;
+      return row
+        ? {status:'verified',registeredAt:row.exported_at||null}
+        : {status:'unregistered',registeredAt:null};
+    }catch{
+      return {status:'unavailable',registeredAt:null};
+    }
   }
 
   function ensureBackupUi(){
@@ -308,7 +328,7 @@
     const button=byId('importBtn');
     const hint=byId('backupImportHint');
     const file=input?.files?.[0];
-    importVerification={status:'idle',message:'',verified:false,legacy:false};
+    importVerification={status:'idle',message:'',verified:false,legacy:false,registration:'unknown',registeredAt:null};
     if(!file){
       if(hint)hint.textContent='Backups protegidos serão verificados antes da restauração.';
       if(button)button.disabled=false;
@@ -320,15 +340,32 @@
     try{
       const raw=JSON.parse(await file.text());
       const result=await verifyEnvelope(raw);
-      importVerification={status:'ready',message:'',verified:result.verified,legacy:result.legacy,recordCount:result.recordCount,checksum:result.checksum};
+      let registration={status:'not_applicable',registeredAt:null};
+      if(result.verified&&!result.legacy)registration=await verifyRegisteredExport(result.checksum,result.recordCount);
+      importVerification={
+        status:'ready',
+        message:'',
+        verified:result.verified,
+        legacy:result.legacy,
+        recordCount:result.recordCount,
+        checksum:result.checksum,
+        registration:registration.status,
+        registeredAt:registration.registeredAt
+      };
       if(hint){
-        hint.textContent=result.verified
-          ? `✓ Backup íntegro • ${result.recordCount} fechamento(s) • SHA-256 ${String(result.checksum).slice(0,12)}...`
-          : `Backup antigo compatível • ${result.recordCount} fechamento(s) • sem assinatura SHA-256.`;
+        if(result.verified&&registration.status==='verified'){
+          hint.textContent=`✓ Backup íntegro e registrado na nuvem • ${result.recordCount} fechamento(s) • SHA-256 ${String(result.checksum).slice(0,12)}...`;
+        }else if(result.verified&&registration.status==='unregistered'){
+          hint.textContent=`⚠ Backup íntegro, mas esta cópia não está registrada na nuvem. A origem não pôde ser confirmada • ${result.recordCount} fechamento(s).`;
+        }else if(result.verified){
+          hint.textContent=`✓ Backup íntegro • ${result.recordCount} fechamento(s) • SHA-256 ${String(result.checksum).slice(0,12)}... • verificação de origem indisponível.`;
+        }else{
+          hint.textContent=`Backup antigo compatível • ${result.recordCount} fechamento(s) • sem assinatura SHA-256.`;
+        }
       }
       if(button)button.disabled=false;
     }catch(err){
-      importVerification={status:'invalid',message:err?.message||'Arquivo de backup inválido.',verified:false,legacy:false};
+      importVerification={status:'invalid',message:err?.message||'Arquivo de backup inválido.',verified:false,legacy:false,registration:'unknown',registeredAt:null};
       if(hint)hint.textContent='⚠ '+importVerification.message;
       if(button)button.disabled=true;
     }finally{
@@ -342,6 +379,7 @@
       if(importVerification.status==='invalid')return importVerification.message;
       if(importVerification.status==='checking')return'Aguarde a verificação do arquivo antes de restaurar.';
       if(importVerification.status==='ready'&&Number(importVerification.recordCount)!==records.length)return'A contagem do arquivo mudou depois da verificação.';
+      if(importVerification.status==='ready'&&importVerification.verified&&importVerification.registration==='unregistered')return true;
       return previousValidate(records);
     };
   }
@@ -401,6 +439,15 @@
     createSnapshot,
     refreshStatus:refreshProtectionStatus,
     snapshotIsOutdated,
-    status:()=>({external:externalVerificationState,snapshot:snapshotVerificationState})
+    status:()=>({external:externalVerificationState,snapshot:snapshotVerificationState}),
+    importStatus:()=>({
+      status:importVerification.status,
+      verified:importVerification.verified,
+      legacy:importVerification.legacy,
+      registration:importVerification.registration,
+      registeredAt:importVerification.registeredAt,
+      recordCount:importVerification.recordCount||0,
+      checksum:importVerification.checksum||null
+    })
   };
 })();
