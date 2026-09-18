@@ -13,6 +13,16 @@ async function sha256Hex(value:string){
   return [...new Uint8Array(digest)].map(byte=>byte.toString(16).padStart(2,"0")).join("");
 }
 
+function timingSafeEqual(leftValue:string,rightValue:string){
+  const encoder=new TextEncoder();
+  const left=encoder.encode(leftValue);
+  const right=encoder.encode(rightValue);
+  if(left.length!==right.length)return false;
+  let diff=0;
+  for(let index=0;index<left.length;index++)diff|=left[index]^right[index];
+  return diff===0;
+}
+
 function money(value:number){
   return Number(value||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 }
@@ -32,7 +42,10 @@ Deno.serve(async(req:Request)=>{
   const db=createClient(supabaseUrl,serviceRole,{auth:{persistSession:false,autoRefreshToken:false}});
 
   const {data:configRows,error:configError}=await db.rpc("get_bill_push_config");
-  if(configError)return reply(500,{error:"push_config_unavailable",detail:configError.message});
+  if(configError){
+    console.error("bill-reminders config unavailable",configError);
+    return reply(500,{error:"push_config_unavailable"});
+  }
   const config=Array.isArray(configRows)?configRows[0]:configRows;
   if(!config?.vapid_public_key||!config?.vapid_private_key||!config?.vapid_subject||!config?.cron_secret_hash){
     return reply(503,{error:"push_config_incomplete"});
@@ -40,12 +53,15 @@ Deno.serve(async(req:Request)=>{
 
   const receivedSecret=req.headers.get("x-cron-secret")||"";
   const receivedHash=await sha256Hex(receivedSecret);
-  if(!receivedSecret||receivedHash!==String(config.cron_secret_hash))return reply(401,{error:"unauthorized"});
+  if(!receivedSecret||!timingSafeEqual(receivedHash,String(config.cron_secret_hash)))return reply(401,{error:"unauthorized"});
 
   webpush.setVapidDetails(String(config.vapid_subject),String(config.vapid_public_key),String(config.vapid_private_key));
 
   const {data:targets,error:targetError}=await db.rpc("list_due_bill_notification_targets");
-  if(targetError)return reply(500,{error:"target_query_failed",detail:targetError.message});
+  if(targetError){
+    console.error("bill-reminders target query failed",targetError);
+    return reply(500,{error:"target_query_failed"});
+  }
 
   let sent=0,disabled=0,failed=0;
   for(const target of targets||[]){
