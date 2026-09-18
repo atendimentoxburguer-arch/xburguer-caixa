@@ -31,6 +31,7 @@ jobs:
           caixa=Path('caixa.html').read_text(encoding='utf-8')
           sw=Path('service-worker.js').read_text(encoding='utf-8')
           readme=Path('README.md').read_text(encoding='utf-8')
+          app5=Path('app5.js').read_text(encoding='utf-8')
 
           need("const FORMAT='xburguer-caixa-backup-v2'" in backup,'Formato protegido v2 ausente.')
           need("const MAX_AGE_DAYS=7" in backup,'Prazo semanal do backup externo foi alterado.')
