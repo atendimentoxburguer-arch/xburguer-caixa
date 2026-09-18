@@ -15,3 +15,13 @@ test('clique em notificação preserva o destino de boletos em janela já aberta
 test('service worker mantém fallback para abrir uma nova janela', () => {
   assert.match(sw, /self\.clients\.openWindow\(target\)/);
 });
+
+
+test('cache do PWA normaliza query strings e remove entradas legadas duplicadas', () => {
+  assert.match(sw, /function cacheKeyForRequest\(request\)/);
+  assert.match(sw, /url\.search = ""/);
+  assert.match(sw, /url\.hash = ""/);
+  assert.match(sw, /cache\.put\(cacheKeyForRequest\(request\), response\.clone\(\)\)/);
+  assert.match(sw, /cache\.match\(cacheKeyForRequest\(request\)\)/);
+  assert.match(sw, /Boolean\(url\.search \|\| url\.hash\)/);
+});
