@@ -1,12 +1,67 @@
+create table if not exists public.deleted_closing_recovery (
+  id uuid primary key default gen_random_uuid(),
+  original_closing_id uuid not null,
+  business_date date not null,
+  deleted_at timestamptz not null default now(),
+  deleted_by uuid,
+  payload jsonb not null
+);
+
+alter table public.deleted_closing_recovery enable row level security;
+
+create index if not exists deleted_closing_recovery_deleted_at_idx on public.deleted_closing_recovery(deleted_at desc);
+create index if not exists deleted_closing_recovery_business_date_idx on public.deleted_closing_recovery(business_date desc);
+
+revoke all on public.deleted_closing_recovery from anon;
+revoke insert, update, delete on public.deleted_closing_recovery from authenticated;
+grant select on public.deleted_closing_recovery to authenticated;
+
+drop policy if exists deleted_closing_recovery_select on public.deleted_closing_recovery;
+create policy deleted_closing_recovery_select
+on public.deleted_closing_recovery
+for select
+to authenticated
+using (private.is_active_user() and private.can_manage());
+
+create or replace function private.capture_deleted_cash_closing()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+declare
+  v_payload jsonb;
+begin
+  v_payload := jsonb_build_object(
+    'closing', to_jsonb(old),
+    'channel_sales', coalesce((select jsonb_agg(to_jsonb(x) order by x.channel_name) from public.channel_sales x where x.closing_id = old.id),'[]'::jsonb),
+    'bread_controls', coalesce((select jsonb_agg(to_jsonb(x) order by x.bread_type) from public.bread_controls x where x.closing_id = old.id),'[]'::jsonb),
+    'online_orders', coalesce((select jsonb_agg(to_jsonb(x) order by x.platform) from public.online_orders x where x.closing_id = old.id),'[]'::jsonb),
+    'expenses', coalesce((select jsonb_agg(to_jsonb(x) order by x.created_at, x.id) from public.expenses x where x.closing_id = old.id),'[]'::jsonb)
+  );
+
+  insert into public.deleted_closing_recovery(original_closing_id,business_date,deleted_by,payload)
+  values (old.id, old.business_date, auth.uid(), v_payload);
+
+  return old;
+end;
+$$;
+
+revoke all on function private.capture_deleted_cash_closing() from public, anon, authenticated;
+
+drop trigger if exists protect_deleted_cash_closing on public.cash_closings;
+create trigger protect_deleted_cash_closing
+before delete on public.cash_closings
+for each row execute function private.capture_deleted_cash_closing();
+
 create or replace function public.restore_deleted_cash_closing(p_recovery_id uuid)
 returns uuid
 language plpgsql
-set search_path to 'public', 'private'
-as $function$
+security invoker
+set search_path = public, private
+as $$
 declare
   v_payload jsonb;
-  v_checksum text;
-  v_actual_checksum text;
   v_closing jsonb;
   v_record jsonb;
   v_result uuid;
@@ -15,8 +70,7 @@ begin
     raise exception 'permission denied';
   end if;
 
-  select payload, checksum_sha256
-  into v_payload, v_checksum
+  select payload into v_payload
   from public.deleted_closing_recovery
   where id = p_recovery_id;
 
@@ -24,20 +78,9 @@ begin
     raise exception 'recovery record not found';
   end if;
 
-  v_actual_checksum := encode(extensions.digest(convert_to(v_payload::text,'UTF8'),'sha256'),'hex');
-  if v_checksum is null or v_checksum !~ '^[0-9a-f]{64}$' or v_checksum <> v_actual_checksum then
-    raise exception 'recovery checksum mismatch';
-  end if;
-
   v_closing := v_payload->'closing';
-  if v_closing is null or jsonb_typeof(v_closing) <> 'object' then
-    raise exception 'invalid recovery payload';
-  end if;
-
   v_record := jsonb_build_object(
     'date', v_closing->>'business_date',
-    'register_name', coalesce(nullif(v_closing->>'register_name',''),'Caixa Principal'),
-    'shift_name', coalesce(nullif(v_closing->>'shift_name',''),'Dia'),
     'resp', v_closing->>'responsible_name',
     'status', coalesce(v_closing->>'status','closed'),
     'opening', coalesce((v_closing->>'opening_balance')::numeric,0),
@@ -69,4 +112,7 @@ begin
   v_result := public.save_cash_closing(v_record);
   return v_result;
 end;
-$function$;
+$$;
+
+revoke all on function public.restore_deleted_cash_closing(uuid) from anon;
+grant execute on function public.restore_deleted_cash_closing(uuid) to authenticated;

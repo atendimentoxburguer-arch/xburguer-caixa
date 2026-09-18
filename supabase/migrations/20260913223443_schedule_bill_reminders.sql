@@ -1,7 +1,3 @@
--- X-Burguer Caixa — agendamento diário dos lembretes de boletos.
--- O segredo em texto puro fica no Supabase Vault com o nome
--- bill_reminders_cron_secret. Nenhum segredo é versionado neste arquivo.
-
 create extension if not exists pg_net with schema extensions;
 create extension if not exists pg_cron with schema pg_catalog;
 
@@ -45,7 +41,6 @@ select cron.unschedule(jobid)
 from cron.job
 where jobname='bill-reminders-daily';
 
--- PostgreSQL/Supabase cron usa UTC. 12:00 UTC corresponde a 09:00 em Brasília.
 select cron.schedule(
   'bill-reminders-daily',
   '0 12 * * *',

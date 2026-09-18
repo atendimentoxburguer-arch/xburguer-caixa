@@ -95,8 +95,35 @@ function updateSyncUi(){
 
 function sessionStore(remember){return remember?localStorage:sessionStorage}
 function clearStoredSessions(){localStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(SESSION_KEY)}
-function persistSession(session,remember){clearStoredSessions();if(session)sessionStore(remember).setItem(SESSION_KEY,JSON.stringify(session))}
-function readStoredSession(){for(const store of [localStorage,sessionStorage]){try{const s=JSON.parse(store.getItem(SESSION_KEY)||'null');if(s?.refresh_token)return {session:s,remember:store===localStorage}}catch{}}return null}
+function sessionUser(user){return user?.id?{id:String(user.id),email:String(user.email||'')}:null}
+function sessionForStorage(session){
+  if(!session?.refresh_token)return null;
+  return {
+    refresh_token:String(session.refresh_token),
+    token_type:String(session.token_type||'bearer'),
+    expires_at:0,
+    user:sessionUser(session.user)
+  };
+}
+function validStoredSession(session){return !!(session?.refresh_token&&sessionUser(session.user)?.id)}
+function persistSession(session,remember){
+  clearStoredSessions();
+  const stored=sessionForStorage(session);
+  if(stored)sessionStore(remember).setItem(SESSION_KEY,JSON.stringify(stored));
+}
+function readStoredSession(){
+  for(const store of [localStorage,sessionStorage]){
+    try{
+      const raw=JSON.parse(store.getItem(SESSION_KEY)||'null');
+      if(!validStoredSession(raw))continue;
+      const session=sessionForStorage(raw);
+      // Remove access token e metadados legados que versões anteriores persistiam.
+      store.setItem(SESSION_KEY,JSON.stringify(session));
+      return {session,remember:store===localStorage};
+    }catch{}
+  }
+  return null;
+}
 
 async function fetchWithTimeout(url,options={},timeout=20000){
   const controller=new AbortController();
@@ -122,7 +149,7 @@ async function authFetch(path,body){
 
 function normalizeSession(data){
   if(!data?.access_token)return null;
-  return {access_token:data.access_token,refresh_token:data.refresh_token,token_type:data.token_type||'bearer',expires_at:data.expires_at||Math.floor(Date.now()/1000)+Number(data.expires_in||3600),user:data.user||null};
+  return {access_token:data.access_token,refresh_token:data.refresh_token,token_type:data.token_type||'bearer',expires_at:data.expires_at||Math.floor(Date.now()/1000)+Number(data.expires_in||3600),user:sessionUser(data.user)};
 }
 
 async function refreshAuthSession(remember=true){

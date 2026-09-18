@@ -126,3 +126,23 @@ test('duplicar boleto cria nova conta com vencimento no mês seguinte',async({pa
   expect(stored).toHaveLength(2);
   expect(stored[0].id).not.toBe(stored[1].id);
 });
+
+test('logout limpa cache de boletos e valores financeiros visíveis',async({page})=>{
+  await openCleanApp(page);await login(page);
+  await page.locator('[data-page="boletos"]').click();
+  const due=await datePlus(page,5);
+  await createBill(page,{supplier:'Cache sensível',description:'Não deve permanecer após sair',amount:77,due});
+  await page.locator('[data-page="fechamento"]').click();
+  await page.locator('#cash__brl').fill('99');
+  await page.evaluate(()=>{if(authSession)authSession.access_token=''});
+  await page.locator('#logoutBtn').click();
+  await expect(page.locator('#loginScreen')).not.toHaveClass(/hidden/);
+  const state=await page.evaluate(()=>({
+    billCache:localStorage.getItem('xburguer_bills_cache_v1'),
+    billRows:window.XBBills.rows().length,
+    cash:document.getElementById('cash')?.value||''
+  }));
+  expect(state.billCache).toBeNull();
+  expect(state.billRows).toBe(0);
+  expect(state.cash).toBe('');
+});

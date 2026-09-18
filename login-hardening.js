@@ -144,6 +144,7 @@
     }catch(err){
       try{clearStoredSessions()}catch{}
       try{authSession=null;currentUser=null;currentProfile=null;cloudData=[]}catch{}
+      try{window.xbClearAuthenticatedView?.()}catch{}
       showError(friendlyAuthMessage(err));
       try{setCloudStatus('● Falha no login','error')}catch{}
       pass.focus({preventScroll:true});
@@ -171,6 +172,7 @@
         if(expired&&!isNetworkMessage(msg)){
           try{clearStoredSessions()}catch{}
           try{authSession=null;currentUser=null;currentProfile=null;cloudData=[]}catch{}
+          try{window.xbClearAuthenticatedView?.()}catch{}
           const screen=document.getElementById('loginScreen');
           screen?.classList.remove('hidden','leaving');
           showError('Sua sessão expirou. Digite a senha novamente para continuar.');

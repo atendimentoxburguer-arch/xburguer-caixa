@@ -1,7 +1,3 @@
--- X-Burguer Caixa — endurecimento de segurança da área de boletos.
--- Reutiliza o helper privado já existente no projeto para evitar RPCs públicos
--- SECURITY DEFINER e mantém o log de notificações inacessível ao frontend.
-
 drop policy if exists bills_select_active on public.bills;
 create policy bills_select_active on public.bills for select to authenticated
 using (private.is_active_user());
@@ -52,6 +48,7 @@ $$;
 revoke all on function private.xb_bills_reset_reopened_notifications() from public, anon, authenticated;
 
 drop function if exists public.xb_bills_reset_reopened_notifications();
+
 drop function if exists public.xb_is_active_cash_user();
 
 create trigger bills_reset_reopened_notifications

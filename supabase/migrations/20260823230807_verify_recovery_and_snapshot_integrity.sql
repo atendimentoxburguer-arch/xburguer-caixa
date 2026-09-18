@@ -1,8 +1,8 @@
 create or replace function public.restore_deleted_cash_closing(p_recovery_id uuid)
 returns uuid
 language plpgsql
-set search_path to 'public', 'private'
-as $function$
+set search_path to 'public','private'
+as $$
 declare
   v_payload jsonb;
   v_checksum text;
@@ -36,8 +36,6 @@ begin
 
   v_record := jsonb_build_object(
     'date', v_closing->>'business_date',
-    'register_name', coalesce(nullif(v_closing->>'register_name',''),'Caixa Principal'),
-    'shift_name', coalesce(nullif(v_closing->>'shift_name',''),'Dia'),
     'resp', v_closing->>'responsible_name',
     'status', coalesce(v_closing->>'status','closed'),
     'opening', coalesce((v_closing->>'opening_balance')::numeric,0),
@@ -69,4 +67,111 @@ begin
   v_result := public.save_cash_closing(v_record);
   return v_result;
 end;
-$function$;
+$$;
+
+revoke execute on function public.restore_deleted_cash_closing(uuid) from public;
+revoke execute on function public.restore_deleted_cash_closing(uuid) from anon;
+grant execute on function public.restore_deleted_cash_closing(uuid) to authenticated;
+
+alter table public.cash_backup_snapshots
+  add column if not exists checksum_sha256 text;
+
+update public.cash_backup_snapshots
+set checksum_sha256 = encode(extensions.digest(convert_to(payload::text,'UTF8'),'sha256'),'hex')
+where checksum_sha256 is null;
+
+alter table public.cash_backup_snapshots
+  alter column checksum_sha256 set not null;
+
+alter table public.cash_backup_snapshots
+  drop constraint if exists cash_backup_snapshots_checksum_sha256_check;
+alter table public.cash_backup_snapshots
+  add constraint cash_backup_snapshots_checksum_sha256_check
+  check (checksum_sha256 ~ '^[0-9a-f]{64}$');
+
+alter table public.cash_backup_snapshots
+  drop constraint if exists cash_backup_snapshots_record_count_matches_payload;
+alter table public.cash_backup_snapshots
+  add constraint cash_backup_snapshots_record_count_matches_payload
+  check (record_count = jsonb_array_length(payload));
+
+create or replace function public.create_cash_snapshot()
+returns uuid
+language plpgsql
+set search_path to 'public'
+as $$
+declare
+  v_id uuid;
+  v_payload jsonb;
+  v_count integer;
+  v_checksum text;
+begin
+  if auth.uid() is null or not private.is_active_user() then
+    raise exception 'authentication required';
+  end if;
+
+  select coalesce(jsonb_agg(
+    jsonb_build_object(
+      'cash_closing', to_jsonb(c),
+      'channel_sales', coalesce((select jsonb_agg(to_jsonb(x) order by x.channel_name) from public.channel_sales x where x.closing_id = c.id), '[]'::jsonb),
+      'bread_controls', coalesce((select jsonb_agg(to_jsonb(x) order by x.bread_type) from public.bread_controls x where x.closing_id = c.id), '[]'::jsonb),
+      'online_orders', coalesce((select jsonb_agg(to_jsonb(x) order by x.platform) from public.online_orders x where x.closing_id = c.id), '[]'::jsonb),
+      'expenses', coalesce((select jsonb_agg(to_jsonb(x) order by x.created_at, x.id) from public.expenses x where x.closing_id = c.id), '[]'::jsonb)
+    ) order by c.business_date, c.register_name, c.shift_name
+  ), '[]'::jsonb)
+  into v_payload
+  from public.cash_closings c;
+
+  v_count := jsonb_array_length(v_payload);
+  v_checksum := encode(extensions.digest(convert_to(v_payload::text,'UTF8'),'sha256'),'hex');
+
+  insert into public.cash_backup_snapshots (snapshot_day, created_at, created_by, record_count, payload, checksum_sha256)
+  values (current_date, now(), auth.uid(), v_count, v_payload, v_checksum)
+  on conflict (snapshot_day) do update set
+    created_at = excluded.created_at,
+    created_by = excluded.created_by,
+    record_count = excluded.record_count,
+    payload = excluded.payload,
+    checksum_sha256 = excluded.checksum_sha256
+  returning id into v_id;
+
+  delete from public.cash_backup_snapshots
+  where snapshot_day < current_date - 30;
+
+  return v_id;
+end;
+$$;
+
+revoke all on function public.create_cash_snapshot() from public;
+revoke all on function public.create_cash_snapshot() from anon;
+grant execute on function public.create_cash_snapshot() to authenticated;
+
+create or replace function public.delete_cash_closing(p_id uuid)
+returns boolean
+language plpgsql
+set search_path to 'public','private'
+as $$
+declare
+  v_deleted uuid;
+begin
+  if auth.uid() is null or not private.is_active_user() or not private.is_admin() then
+    raise exception 'permission denied';
+  end if;
+  if p_id is null then
+    raise exception 'closing id is required';
+  end if;
+
+  delete from public.cash_closings
+  where id = p_id
+  returning id into v_deleted;
+
+  if v_deleted is null then
+    raise exception 'closing not found';
+  end if;
+  return true;
+end;
+$$;
+
+revoke all on function public.delete_cash_closing(uuid) from public;
+revoke all on function public.delete_cash_closing(uuid) from anon;
+grant execute on function public.delete_cash_closing(uuid) to authenticated;

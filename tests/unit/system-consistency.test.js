@@ -54,3 +54,29 @@ test('função de lembretes não devolve detalhes internos de configuração', (
   assert.doesNotMatch(edge, /detail\s*:\s*configError\.message/);
   assert.match(edge, /timingSafeEqual/);
 });
+
+test('sessão persistida minimiza credenciais e força renovação após recarregar', () => {
+  const app = read('app1.js');
+  const start = app.indexOf('function sessionForStorage');
+  const end = app.indexOf('async function fetchWithTimeout');
+  assert.ok(start >= 0 && end > start, 'bloco de persistência de sessão precisa existir');
+  const block = app.slice(start, end);
+  assert.match(block, /refresh_token:String\(session\.refresh_token\)/);
+  assert.match(block, /expires_at:0/);
+  assert.match(block, /user:sessionUser\(session\.user\)/);
+  assert.doesNotMatch(block, /access_token\s*:/);
+  assert.match(app, /user:sessionUser\(data\.user\)/);
+});
+
+
+test('logout e sessão expirada removem dados sensíveis da interface e cache de boletos', () => {
+  const app5 = read('app5.js');
+  const bills = read('bills.js');
+  const login = read('login-hardening.js');
+  assert.match(app5, /function clearAuthenticatedView\(\)/);
+  assert.match(app5, /localStorage\.removeItem\('xburguer_bills_cache_v1'\)/);
+  assert.match(app5, /resetFormFields\(activeClosingDate\|\|isoToday\(\)\)/);
+  assert.match(bills, /function clearSensitiveCache\(\)/);
+  assert.match(bills, /localStorage\.removeItem\(CACHE_KEY\)/);
+  assert.match(login, /window\.xbClearAuthenticatedView\?\.\(\)/);
+});

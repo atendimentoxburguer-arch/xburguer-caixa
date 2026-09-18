@@ -196,7 +196,7 @@ self.addEventListener("fetch", event => {
     try {
       const response = await fetch(new Request(request, { cache: "no-store" }));
       if (response && response.ok) {
-        cache.put(cacheKeyForRequest(request), response.clone()).catch(() => {});
+        event.waitUntil(cache.put(cacheKeyForRequest(request), response.clone()).catch(() => {}));
       }
       return response;
     } catch (_) {

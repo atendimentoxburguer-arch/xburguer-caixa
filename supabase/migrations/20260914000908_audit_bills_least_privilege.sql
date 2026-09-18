@@ -2,18 +2,12 @@
 -- Endurece privilégios da área de boletos e garante que um boleto
 -- reagendado/reaberto possa voltar a gerar os lembretes corretos.
 
--- O frontend não exclui boletos nem inscrições Push fisicamente.
--- Remover DELETE do papel autenticado reduz a superfície de escrita;
--- cancelamento/reabertura continuam sendo UPDATEs protegidos por RLS.
 revoke delete on table public.bills from authenticated;
 revoke delete on table public.bill_push_subscriptions from authenticated;
 
--- Funções de trigger não precisam ser chamáveis pelo cliente.
 revoke execute on function public.xb_bills_touch_updated_at() from public, anon, authenticated;
 revoke execute on function public.xb_bill_push_touch_updated_at() from public, anon, authenticated;
 
--- Mantém o estado de pagamento coerente também no banco: um boleto só pode
--- carregar dados de pagamento quando estiver efetivamente marcado como pago.
 alter table public.bills
   drop constraint if exists bills_paid_consistency;
 
@@ -37,9 +31,6 @@ alter table public.bills
     )
   );
 
--- Ao mudar o vencimento ou reabrir um boleto, remove a deduplicação antiga.
--- Isso evita que um lembrete já enviado para uma data anterior impeça o
--- aviso correto caso o boleto seja reagendado e depois volte à mesma data.
 create or replace function private.xb_bills_reset_reopened_notifications()
 returns trigger
 language plpgsql

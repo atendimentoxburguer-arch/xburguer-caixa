@@ -74,6 +74,18 @@ O banco também deve manter as regras financeiras essenciais, especialmente:
 
 As linhas de `channel_sales` permanecem independentes desses totais.
 
+## Persistência de sessão
+
+A sessão em memória contém o access token necessário para chamadas autenticadas. Em armazenamento persistente, o Caixa grava somente o **refresh token** e os dados mínimos do usuário (`id` e `email`). O access token não é mantido entre recargas; ao abrir novamente, o sistema força a renovação da sessão antes de acessar a nuvem.
+
+Essa regra reduz a quantidade de credenciais e metadados mantidos no navegador sem remover o modo offline nem a opção “lembrar neste computador”.
+
+## Migrações do banco
+
+`supabase/migrations/` deve espelhar o histórico aplicado ao projeto de produção, usando exatamente o prefixo UTC de **14 dígitos** registrado em `supabase_migrations.schema_migrations`.
+
+Migrações históricas recuperadas do banco são mantidas para permitir reconstrução, auditoria e uso seguro do Supabase CLI. Migrações novas nunca devem conter senhas, service-role keys, chaves privadas, tokens ou outros segredos; valores secretos continuam fora do Git e são configurados somente pelos mecanismos seguros do Supabase.
+
 ## Testes
 
 ### Unitários
